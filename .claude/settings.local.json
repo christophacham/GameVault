@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__pal__consensus",
+      "Bash(powershell:*)",
+      "mcp__pal__debug",
+      "Bash(podman rmi:*)",
+      "Bash(podman system prune:*)",
+      "Bash(curl:*)",
+      "Bash(podman ps:*)",
+      "Bash(podman logs:*)",
+      "Bash(podman run:*)",
+      "Bash(podman rm:*)",
+      "Bash(set:*)",
+      "Bash(podman compose:*)",
+      "mcp__pal__thinkdeep",
+      "mcp__pal__challenge",
+      "Bash(for i in 1 2 3 4)",
+      "Bash(do echo \"Batch $i:\")",
+      "Bash(done)",
+      "Bash(for i in 1 2 3)",
+      "Bash(do curl -s -X POST http://localhost:3000/api/enrich)",
+      "Bash(for i in 1 2)",
+      "Bash(podman build:*)",
+      "Bash(timeout:*)",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(Select-Object -Last 30)",
+      "Bash(for i in 1 2 3 4 5 6 7 8 9 10)",
+      "WebSearch",
+      "WebFetch(domain:steamdb.info)",
+      "mcp__pal__secaudit",
+      "mcp__pal__codereview",
+      "Bash(podman stop:*)",
+      "Bash(git config:*)",
+      "Bash(git init:*)",
+      "Bash(pushd:*)",
+      "Bash(popd)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

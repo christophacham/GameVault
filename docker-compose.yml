@@ -1,0 +1,21 @@
+services:
+  gamevault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gamevault
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount games folder (read-only)
+      - F:/Games:/games:ro
+      # Mount data folder for SQLite database
+      - ./data:/data
+    environment:
+      - DATABASE_URL=sqlite:///data/games.db?mode=rwc
+      - GAMES_PATH=/games
+      - RUST_LOG=info
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    restart: unless-stopped
