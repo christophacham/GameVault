@@ -4,10 +4,13 @@ export interface Game {
   id: number;
   title: string;
   cover_url: string | null;
+  local_cover_path: string | null;
   genres: string[] | null;
   review_score: number | null;
   review_summary: string | null;
   match_status: string;
+  user_status: string | null;
+  hltb_main_mins: number | null;
 }
 
 export interface GameDetail {
@@ -21,6 +24,8 @@ export interface GameDetail {
   release_date: string | null;
   cover_url: string | null;
   background_url: string | null;
+  local_cover_path: string | null;
+  local_background_path: string | null;
   genres: string | null;
   developers: string | null;
   publishers: string | null;
@@ -30,6 +35,11 @@ export interface GameDetail {
   size_bytes: number | null;
   match_confidence: number | null;
   match_status: string;
+  user_status: string | null;
+  playtime_mins: number | null;
+  hltb_main_mins: number | null;
+  hltb_extra_mins: number | null;
+  hltb_completionist_mins: number | null;
 }
 
 export interface ApiResponse<T> {
@@ -54,6 +64,22 @@ export interface EnrichResult {
   enriched: number;
   failed: number;
   remaining: number;
+  total: number;
+}
+
+export interface ExportResult {
+  exported: number;
+  skipped: number;
+  failed: number;
+  total: number;
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  not_found: number;
+  failed: number;
+  total: number;
 }
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -90,12 +116,24 @@ export async function searchGames(query: string): Promise<Game[]> {
   return fetchApi<Game[]>(`/games/search?q=${encodeURIComponent(query)}`);
 }
 
+export async function getRecentGames(): Promise<Game[]> {
+  return fetchApi<Game[]>('/games/recent');
+}
+
 export async function scanGames(): Promise<ScanResult> {
   return fetchApi<ScanResult>('/scan', { method: 'POST' });
 }
 
 export async function enrichGames(): Promise<EnrichResult> {
   return fetchApi<EnrichResult>('/enrich', { method: 'POST' });
+}
+
+export async function exportGames(): Promise<ExportResult> {
+  return fetchApi<ExportResult>('/export', { method: 'POST' });
+}
+
+export async function importGames(): Promise<ImportResult> {
+  return fetchApi<ImportResult>('/import', { method: 'POST' });
 }
 
 export async function getStats(): Promise<Stats> {
@@ -116,4 +154,18 @@ export function getReviewColor(score: number | null): string {
   if (score >= 60) return 'text-yellow-400';
   if (score >= 40) return 'text-orange-400';
   return 'text-red-400';
+}
+
+export function getCoverUrl(game: Game | GameDetail): string | null {
+  if (game.local_cover_path) {
+    return `${API_URL}/api/games/${game.id}/cover`;
+  }
+  return game.cover_url;
+}
+
+export function getBackgroundUrl(game: GameDetail): string | null {
+  if (game.local_background_path) {
+    return `${API_URL}/api/games/${game.id}/background`;
+  }
+  return game.background_url;
 }

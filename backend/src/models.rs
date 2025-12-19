@@ -19,9 +19,13 @@ pub struct Game {
     pub summary: Option<String>,
     pub release_date: Option<String>,
 
-    // Images (CDN URLs)
+    // Images (CDN URLs - fallback)
     pub cover_url: Option<String>,
     pub background_url: Option<String>,
+
+    // Local cached images (in .gamevault/ folder)
+    pub local_cover_path: Option<String>,
+    pub local_background_path: Option<String>,
 
     // Metadata (JSON strings)
     pub genres: Option<String>,
@@ -44,6 +48,19 @@ pub struct Game {
     pub match_confidence: Option<f64>,
     pub match_status: String,
 
+    // User state
+    pub user_status: Option<String>,
+    pub playtime_mins: Option<i64>,
+    pub match_locked: Option<i64>,
+
+    // HLTB data (HowLongToBeat)
+    pub hltb_main_mins: Option<i64>,
+    pub hltb_extra_mins: Option<i64>,
+    pub hltb_completionist_mins: Option<i64>,
+
+    // Save backup pattern
+    pub save_path_pattern: Option<String>,
+
     // Timestamps
     pub created_at: String,
     pub updated_at: String,
@@ -54,10 +71,13 @@ pub struct GameSummary {
     pub id: i64,
     pub title: String,
     pub cover_url: Option<String>,
+    pub local_cover_path: Option<String>,
     pub genres: Option<Vec<String>>,
     pub review_score: Option<i64>,
     pub review_summary: Option<String>,
     pub match_status: String,
+    pub user_status: Option<String>,
+    pub hltb_main_mins: Option<i64>,
 }
 
 impl From<Game> for GameSummary {
@@ -67,10 +87,13 @@ impl From<Game> for GameSummary {
             id: g.id,
             title: g.title,
             cover_url: g.cover_url,
+            local_cover_path: g.local_cover_path,
             genres,
             review_score: g.review_score,
             review_summary: g.review_summary,
             match_status: g.match_status,
+            user_status: g.user_status,
+            hltb_main_mins: g.hltb_main_mins,
         }
     }
 }

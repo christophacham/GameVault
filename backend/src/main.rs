@@ -1,5 +1,6 @@
 mod db;
 mod handlers;
+mod local_storage;
 mod models;
 mod scanner;
 mod steam;
@@ -130,13 +131,19 @@ async fn main() -> anyhow::Result<()> {
     let protected_routes = Router::new()
         .route("/scan", post(handlers::scan_games))
         .route("/enrich", post(handlers::enrich_games))
+        .route("/export", post(handlers::export_all_metadata))
+        .route("/import", post(handlers::import_all_metadata))
         .layer(middleware::from_fn(auth_middleware));
 
     let api_routes = Router::new()
         .route("/health", get(handlers::health))
         .route("/games", get(handlers::list_games))
+        .route("/games/recent", get(handlers::get_recent_games))
         .route("/games/search", get(handlers::search_games))
         .route("/games/:id", get(handlers::get_game))
+        .route("/games/:id/cover", get(handlers::serve_game_cover))
+        .route("/games/:id/background", get(handlers::serve_game_background))
+        .route("/games/:id/storage", get(handlers::check_folder_writable))
         .route("/stats", get(handlers::get_stats))
         .merge(protected_routes)
         .with_state(state);

@@ -4,16 +4,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { GameCard } from '@/components/GameCard';
 import { SearchBar } from '@/components/SearchBar';
 import { StatsBar } from '@/components/StatsBar';
-import { Game, Stats, getGames, searchGames, scanGames, enrichGames, getStats } from '@/lib/api';
+import { EnrichModal } from '@/components/EnrichModal';
+import { Game, Stats, getGames, searchGames, scanGames, getStats } from '@/lib/api';
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [enriching, setEnriching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [enrichModalOpen, setEnrichModalOpen] = useState(false);
 
   const loadGames = useCallback(async () => {
     try {
@@ -78,19 +79,9 @@ export default function Home() {
     }
   };
 
-  const handleEnrich = async () => {
-    try {
-      setEnriching(true);
-      const result = await enrichGames();
-      alert(`Enrichment complete: ${result.enriched} enriched, ${result.failed} failed, ${result.remaining} remaining`);
-      loadGames();
-      loadStats();
-    } catch (err) {
-      alert('Enrichment failed. Check console for details.');
-      console.error(err);
-    } finally {
-      setEnriching(false);
-    }
+  const handleEnrichComplete = () => {
+    loadGames();
+    loadStats();
   };
 
   return (
@@ -133,26 +124,13 @@ export default function Home() {
             </button>
 
             <button
-              onClick={handleEnrich}
-              disabled={enriching}
-              className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              onClick={() => setEnrichModalOpen(true)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
             >
-              {enriching ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Enriching...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  Enrich
-                </>
-              )}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Enrich
             </button>
           </div>
         </div>
@@ -204,6 +182,13 @@ export default function Home() {
           ))}
         </div>
       )}
+
+      {/* Enrich Modal */}
+      <EnrichModal
+        isOpen={enrichModalOpen}
+        onClose={() => setEnrichModalOpen(false)}
+        onComplete={handleEnrichComplete}
+      />
     </main>
   );
 }

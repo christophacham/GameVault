@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS games (
     cover_url TEXT,
     background_url TEXT,
 
+    -- Local cached images (stored in .gamevault/ within game folder)
+    local_cover_path TEXT,
+    local_background_path TEXT,
+
     genres TEXT,
     developers TEXT,
     publishers TEXT,
@@ -33,6 +37,19 @@ CREATE TABLE IF NOT EXISTS games (
     match_confidence REAL,
     match_status TEXT NOT NULL DEFAULT 'pending',
 
+    -- User state
+    user_status TEXT DEFAULT 'unplayed',
+    playtime_mins INTEGER DEFAULT 0,
+    match_locked INTEGER DEFAULT 0,
+
+    -- HLTB data
+    hltb_main_mins INTEGER,
+    hltb_extra_mins INTEGER,
+    hltb_completionist_mins INTEGER,
+
+    -- Save backup pattern
+    save_path_pattern TEXT,
+
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -42,6 +59,19 @@ CREATE INDEX IF NOT EXISTS idx_games_match_status ON games(match_status);
 CREATE INDEX IF NOT EXISTS idx_games_steam_app_id ON games(steam_app_id);
 "#;
 
+/// Migration to add new columns to existing databases
+const MIGRATIONS: &[&str] = &[
+    "ALTER TABLE games ADD COLUMN local_cover_path TEXT",
+    "ALTER TABLE games ADD COLUMN local_background_path TEXT",
+    "ALTER TABLE games ADD COLUMN user_status TEXT DEFAULT 'unplayed'",
+    "ALTER TABLE games ADD COLUMN playtime_mins INTEGER DEFAULT 0",
+    "ALTER TABLE games ADD COLUMN match_locked INTEGER DEFAULT 0",
+    "ALTER TABLE games ADD COLUMN hltb_main_mins INTEGER",
+    "ALTER TABLE games ADD COLUMN hltb_extra_mins INTEGER",
+    "ALTER TABLE games ADD COLUMN hltb_completionist_mins INTEGER",
+    "ALTER TABLE games ADD COLUMN save_path_pattern TEXT",
+];
+
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     // Enable WAL mode for better concurrent access
     sqlx::query("PRAGMA journal_mode=WAL")
@@ -49,6 +79,11 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await?;
 
     sqlx::query(SCHEMA).execute(pool).await?;
+
+    // Run migrations for existing databases (ignore errors for already-existing columns)
+    for migration in MIGRATIONS {
+        let _ = sqlx::query(migration).execute(pool).await;
+    }
 
     Ok(())
 }
@@ -105,9 +140,12 @@ pub async fn search_games(pool: &SqlitePool, query: &str) -> Result<Vec<Game>, s
     .await
 }
 
-pub async fn get_pending_games(pool: &SqlitePool) -> Result<Vec<Game>, sqlx::Error> {
+/// Get games that need enrichment:
+/// - Pending games (not yet matched to Steam)
+/// - Games missing local images (matched but image caching failed)
+pub async fn get_games_needing_enrichment(pool: &SqlitePool) -> Result<Vec<Game>, sqlx::Error> {
     sqlx::query_as::<_, Game>(
-        "SELECT * FROM games WHERE match_status = 'pending' OR steam_app_id IS NULL ORDER BY title"
+        "SELECT * FROM games WHERE (match_status = 'pending' OR steam_app_id IS NULL) OR (match_status = 'matched' AND (local_cover_path IS NULL OR local_background_path IS NULL)) ORDER BY title"
     )
     .fetch_all(pool)
     .await
@@ -186,6 +224,61 @@ pub async fn update_game_reviews(
     Ok(())
 }
 
+
+/// Update game metadata from imported JSON file
+pub async fn update_game_from_import(
+    pool: &SqlitePool,
+    id: i64,
+    steam_app_id: Option<i64>,
+    summary: Option<&str>,
+    genres: Option<&str>,
+    developers: Option<&str>,
+    publishers: Option<&str>,
+    release_date: Option<&str>,
+    review_score: Option<i64>,
+    review_summary: Option<&str>,
+    hltb_main: Option<i64>,
+    hltb_extra: Option<i64>,
+    hltb_completionist: Option<i64>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE games SET
+            steam_app_id = COALESCE(?, steam_app_id),
+            summary = COALESCE(?, summary),
+            genres = COALESCE(?, genres),
+            developers = COALESCE(?, developers),
+            publishers = COALESCE(?, publishers),
+            release_date = COALESCE(?, release_date),
+            review_score = COALESCE(?, review_score),
+            review_summary = COALESCE(?, review_summary),
+            hltb_main_mins = COALESCE(?, hltb_main_mins),
+            hltb_extra_mins = COALESCE(?, hltb_extra_mins),
+            hltb_completionist_mins = COALESCE(?, hltb_completionist_mins),
+            match_status = CASE WHEN ? IS NOT NULL THEN 'matched' ELSE match_status END,
+            updated_at = datetime('now')
+        WHERE id = ?
+        "#,
+    )
+    .bind(steam_app_id)
+    .bind(summary)
+    .bind(genres)
+    .bind(developers)
+    .bind(publishers)
+    .bind(release_date)
+    .bind(review_score)
+    .bind(review_summary)
+    .bind(hltb_main)
+    .bind(hltb_extra)
+    .bind(hltb_completionist)
+    .bind(steam_app_id)
+    .bind(id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_stats(pool: &SqlitePool) -> Result<Stats, sqlx::Error> {
     let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM games")
         .fetch_one(pool)
@@ -209,4 +302,51 @@ pub async fn get_stats(pool: &SqlitePool) -> Result<Stats, sqlx::Error> {
         pending_games: pending.0,
         enriched_games: enriched.0,
     })
+}
+
+/// Update local image paths for a game
+pub async fn update_game_local_images(
+    pool: &SqlitePool,
+    id: i64,
+    local_cover_path: Option<&str>,
+    local_background_path: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE games SET
+            local_cover_path = COALESCE(?, local_cover_path),
+            local_background_path = COALESCE(?, local_background_path),
+            updated_at = datetime('now')
+        WHERE id = ?
+        "#,
+    )
+    .bind(local_cover_path)
+    .bind(local_background_path)
+    .bind(id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+/// Get recently added games
+pub async fn get_recent_games(pool: &SqlitePool, limit: i64) -> Result<Vec<Game>, sqlx::Error> {
+    sqlx::query_as::<_, Game>(
+        "SELECT * FROM games ORDER BY created_at DESC LIMIT ?"
+    )
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+}
+
+/// Get game by ID with folder path (for internal use)
+pub async fn get_game_folder_path(pool: &SqlitePool, id: i64) -> Result<Option<String>, sqlx::Error> {
+    let result: Option<(String,)> = sqlx::query_as(
+        "SELECT folder_path FROM games WHERE id = ?"
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(result.map(|r| r.0))
 }

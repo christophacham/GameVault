@@ -5,10 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: gamevault
     ports:
-      - "3000:3000"
+      - "9282:3000"
     volumes:
-      # Mount games folder (read-only)
-      - F:/Games:/games:ro
+      # Mount games folder (read-write for .gamevault directories)
+      - F:/Games:/games:rw
       # Mount data folder for SQLite database
       - ./data:/data
     environment:

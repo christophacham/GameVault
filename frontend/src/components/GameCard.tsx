@@ -1,6 +1,6 @@
 'use client';
 
-import { Game, getReviewColor } from '@/lib/api';
+import { Game, getReviewColor, getCoverUrl } from '@/lib/api';
 
 interface GameCardProps {
   game: Game;
@@ -18,7 +18,7 @@ export function GameCard({ game, onClick }: GameCardProps) {
       {/* Cover Image */}
       <div className="aspect-[460/215] w-full overflow-hidden">
         <img
-          src={game.cover_url || defaultCover}
+          src={getCoverUrl(game) || defaultCover}
           alt={game.title}
           className="w-full h-full object-cover"
           loading="lazy"
