@@ -2,6 +2,7 @@
 name = "gamevault-backend"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 # Web framework
@@ -39,3 +40,22 @@ urlencoding = "2.1"
 
 # Error handling
 anyhow = "1.0"
+
+# Portable executable support
+rust-embed = { version = "8.0", features = ["compression"] }
+mime_guess = "2.0"
+open = "5.0"
+
+# Configuration
+config = "0.14"
+toml = "0.8"
+
+[build-dependencies]
+winres = "0.1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

@@ -1,0 +1,126 @@
+# =============================================================================
+# GameVault - Windows Portable Executable Builder
+# Cross-compiles from Linux to Windows x86_64
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Build Frontend (Next.js static export)
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Copy package files
+COPY frontend/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source files
+COPY frontend/ ./
+
+# Build static export
+RUN npm run build
+
+# Verify output exists
+RUN test -f out/index.html || (echo "Static export failed" && exit 1)
+
+# -----------------------------------------------------------------------------
+# Stage 2: Build Backend for Windows (Rust cross-compilation)
+# -----------------------------------------------------------------------------
+FROM rust:1.85-bookworm AS backend-builder
+
+WORKDIR /app
+
+# Install cross-compilation toolchain for Windows
+RUN apt-get update && apt-get install -y \
+    gcc-mingw-w64-x86-64 \
+    g++-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Windows target
+RUN rustup target add x86_64-pc-windows-gnu
+
+# Configure cargo for cross-compilation
+RUN mkdir -p ~/.cargo && echo '\
+[target.x86_64-pc-windows-gnu]\n\
+linker = "x86_64-w64-mingw32-gcc"\n\
+ar = "x86_64-w64-mingw32-ar"\n\
+' > ~/.cargo/config.toml
+
+# Copy frontend build output first (needed for rust-embed)
+COPY --from=frontend-builder /app/frontend/out /app/frontend/out
+
+# Copy backend cargo files for dependency caching
+WORKDIR /app/backend
+COPY backend/Cargo.toml backend/Cargo.lock* ./
+
+# Create dummy main.rs for dependency build
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# Build dependencies (this step is cached)
+RUN cargo build --release --target x86_64-pc-windows-gnu 2>/dev/null || true
+RUN rm -rf src
+
+# Copy actual source code
+COPY backend/src ./src
+
+# Copy build script and manifest if they exist
+COPY backend/build.rs* backend/gamevault.manifest* ./
+
+# Build the release binary
+RUN touch src/main.rs && cargo build --release --target x86_64-pc-windows-gnu
+
+# Verify the exe was created
+RUN test -f target/x86_64-pc-windows-gnu/release/gamevault-backend.exe || \
+    (echo "Windows build failed" && exit 1)
+
+# -----------------------------------------------------------------------------
+# Stage 3: Output (minimal image to extract artifacts)
+# -----------------------------------------------------------------------------
+FROM alpine:3.20 AS output
+
+WORKDIR /output
+
+# Copy the Windows executable
+COPY --from=backend-builder /app/backend/target/x86_64-pc-windows-gnu/release/gamevault-backend.exe ./GameVault.exe
+
+# Copy config template if it exists
+COPY config.example.toml* ./
+
+# Create default directories structure
+RUN mkdir -p data cache logs
+
+# Create a default config if none exists
+RUN if [ ! -f config.example.toml ]; then \
+    echo '# GameVault Configuration\n\
+# Place this file next to GameVault.exe and rename to config.toml\n\
+\n\
+[paths]\n\
+# Root directory containing your games\n\
+game_library = "D:\\\\Games"\n\
+\n\
+# Database file location (relative to executable or absolute)\n\
+database = "./data/gamevault.db"\n\
+\n\
+# Cache directory for cover images\n\
+cache = "./cache"\n\
+\n\
+[server]\n\
+# Port to run the web server on\n\
+port = 3000\n\
+\n\
+# Automatically open browser when starting\n\
+auto_open_browser = true\n\
+\n\
+# Address to bind to (127.0.0.1 = localhost only)\n\
+bind_address = "127.0.0.1"\n\
+' > config.toml; \
+    fi
+
+# The output stage contains:
+# - GameVault.exe (portable Windows executable with embedded frontend)
+# - config.toml (default configuration)
+# - data/ (empty, for database)
+# - cache/ (empty, for covers)
+# - logs/ (empty, for logs)

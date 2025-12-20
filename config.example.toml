@@ -1,0 +1,46 @@
+# GameVault Configuration
+# ======================
+# Copy this file to config.toml (next to GameVault.exe) and customize.
+# All paths can be relative (to the executable) or absolute.
+
+[paths]
+# Root directory containing your games to scan
+# Examples:
+#   game_library = "D:\\Games"
+#   game_library = "C:\\Users\\YourName\\Games"
+#   game_library = "./games"  (relative to executable)
+game_library = "."
+
+# SQLite database file location
+# The database will be created automatically on first run
+database = "sqlite:./data/gamevault.db?mode=rwc"
+
+# Cache directory for downloaded cover images and metadata
+cache = "./cache"
+
+[server]
+# Port to run the web server on
+# Default: 3000
+port = 3000
+
+# Automatically open your default browser when GameVault starts
+# Set to false if you prefer to open it manually
+auto_open_browser = true
+
+# Network address to bind to
+# - "127.0.0.1" = localhost only (more secure, default)
+# - "0.0.0.0" = all network interfaces (accessible from other devices)
+bind_address = "127.0.0.1"
+
+# ==============================================================================
+# Environment Variable Overrides
+# ==============================================================================
+# You can also configure GameVault using environment variables:
+#
+#   GAMEVAULT_PATHS__GAME_LIBRARY=D:\Games
+#   GAMEVAULT_PATHS__DATABASE=sqlite:./data/games.db?mode=rwc
+#   GAMEVAULT_SERVER__PORT=8080
+#   GAMEVAULT_SERVER__AUTO_OPEN_BROWSER=false
+#
+# Legacy environment variables are also supported for backwards compatibility:
+#   DATABASE_URL, GAMES_PATH, PORT, HOST

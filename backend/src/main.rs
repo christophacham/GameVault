@@ -1,4 +1,12 @@
+// Hide console window in release builds on Windows
+#![cfg_attr(
+    all(target_os = "windows", not(debug_assertions)),
+    windows_subsystem = "windows"
+)]
+
+mod config;
 mod db;
+mod embedded;
 mod handlers;
 mod local_storage;
 mod models;
@@ -6,7 +14,7 @@ mod scanner;
 mod steam;
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
     middleware,
     extract::Request,
@@ -17,10 +25,12 @@ use axum::body::Body;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
-use axum::http::{HeaderValue, Method, header::CONTENT_TYPE};
-use tower_http::services::{ServeDir, ServeFile};
+use axum::http::{header::CONTENT_TYPE, HeaderValue, Method};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use crate::config::{AppConfig, ensure_directories};
+use crate::embedded::serve_static;
 
 pub struct AppState {
     pub db: sqlx::SqlitePool,
@@ -69,17 +79,27 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Starting GameVault server...");
 
-    // Get configuration from environment
+    // Load configuration from config.toml or environment
+    let app_config = AppConfig::load().unwrap_or_else(|e| {
+        tracing::warn!("Failed to load config, using defaults: {}", e);
+        AppConfig::load().expect("Default config should always work")
+    });
+
+    // Ensure required directories exist (data, cache, logs)
+    ensure_directories(&app_config)?;
+
+    // Get configuration values (supports both config file and env vars for backwards compat)
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "sqlite:./data/games.db?mode=rwc".to_string());
+        .unwrap_or_else(|_| app_config.database_url());
     let games_path = std::env::var("GAMES_PATH")
-        .unwrap_or_else(|_| "/games".to_string());
+        .unwrap_or_else(|_| app_config.games_path().to_string_lossy().to_string());
     let port = std::env::var("PORT")
-        .unwrap_or_else(|_| "3000".to_string())
-        .parse::<u16>()
-        .unwrap_or(3000);
-    // SECURITY: Default to localhost only - use HOST=0.0.0.0 to expose to network
-    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(app_config.server.port);
+    let host = std::env::var("HOST")
+        .unwrap_or_else(|_| app_config.server.bind_address.clone());
+    let auto_open_browser = app_config.server.auto_open_browser;
 
     tracing::info!("Database URL: {}", database_url);
     tracing::info!("Games path: {}", games_path);
@@ -122,7 +142,7 @@ async fn main() -> anyhow::Result<()> {
 
         CorsLayer::new()
             .allow_origin(origins)
-            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::OPTIONS])
             .allow_headers([CONTENT_TYPE])
     };
 
@@ -133,6 +153,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/enrich", post(handlers::enrich_games))
         .route("/export", post(handlers::export_all_metadata))
         .route("/import", post(handlers::import_all_metadata))
+        .route("/games/:id", put(handlers::update_game))
+        .route("/games/:id/match", post(handlers::rematch_game))
+        .route("/games/:id/match/confirm", post(handlers::confirm_rematch))
         .layer(middleware::from_fn(auth_middleware));
 
     let api_routes = Router::new()
@@ -148,19 +171,25 @@ async fn main() -> anyhow::Result<()> {
         .merge(protected_routes)
         .with_state(state);
 
-    // Build main router - serve static files and API
+    // Build main router - serve embedded static files and API
     let app = Router::new()
         .nest("/api", api_routes)
-        .fallback_service(
-            ServeDir::new("public")
-                .append_index_html_on_directories(true)
-                .not_found_service(ServeFile::new("public/index.html"))
-        )
+        .fallback(serve_static)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
     let addr = format!("{}:{}", host, port);
+    let url = format!("http://localhost:{}", port);
+
     tracing::info!("Server listening on {}", addr);
+    tracing::info!("Open {} in your browser", url);
+
+    // Auto-open browser if configured (and not in Docker/headless)
+    if auto_open_browser && std::env::var("DOCKER").is_err() {
+        if let Err(e) = open::that(&url) {
+            tracing::warn!("Failed to open browser: {}", e);
+        }
+    }
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
