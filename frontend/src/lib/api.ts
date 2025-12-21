@@ -136,6 +136,50 @@ export async function importGames(): Promise<ImportResult> {
   return fetchApi<ImportResult>('/import', { method: 'POST' });
 }
 
+export interface UpdateGameRequest {
+  title?: string;
+  summary?: string;
+  genres?: string[];
+  developers?: string[];
+  publishers?: string[];
+  release_date?: string;
+  review_score?: number;
+}
+
+export async function updateGame(id: number, data: UpdateGameRequest): Promise<GameDetail> {
+  return fetchApi<GameDetail>(`/games/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export interface RematchResult {
+  steam_app_id: number;
+  title: string;
+  summary: string | null;
+  genres: string[] | null;
+  developers: string[] | null;
+  publishers: string[] | null;
+  release_date: string | null;
+  cover_url: string | null;
+  review_score: number | null;
+  review_summary: string | null;
+}
+
+export async function previewRematch(id: number, steamInput: string): Promise<RematchResult> {
+  return fetchApi<RematchResult>(`/games/${id}/match`, {
+    method: 'POST',
+    body: JSON.stringify({ steam_input: steamInput }),
+  });
+}
+
+export async function confirmRematch(id: number, steamInput: string): Promise<GameDetail> {
+  return fetchApi<GameDetail>(`/games/${id}/match/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ steam_input: steamInput }),
+  });
+}
+
 export async function getStats(): Promise<Stats> {
   return fetchApi<Stats>('/stats');
 }
@@ -168,4 +212,68 @@ export function getBackgroundUrl(game: GameDetail): string | null {
     return `${API_URL}/api/games/${game.id}/background`;
   }
   return game.background_url;
+}
+
+// ============================================================================
+// Configuration API
+// ============================================================================
+
+export interface ConfigPaths {
+  game_library: string;
+  cache: string;
+  game_library_exists: boolean;
+  cache_exists: boolean;
+}
+
+export interface ConfigServer {
+  port: number;
+  auto_open_browser: boolean;
+  bind_address: string;
+}
+
+export interface Config {
+  paths: ConfigPaths;
+  server: ConfigServer;
+}
+
+export interface ConfigUpdateRequest {
+  game_library: string;
+  cache: string;
+  port: number;
+  auto_open_browser: boolean;
+}
+
+export interface ConfigUpdateResponse {
+  success: boolean;
+  restart_required: boolean;
+  message: string;
+}
+
+export async function getConfig(): Promise<Config> {
+  return fetchApi<Config>('/config');
+}
+
+export async function updateConfig(data: ConfigUpdateRequest): Promise<ConfigUpdateResponse> {
+  return fetchApi<ConfigUpdateResponse>('/config', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function shutdownServer(): Promise<string> {
+  return fetchApi<string>('/shutdown', { method: 'POST' });
+}
+
+export async function restartServer(): Promise<string> {
+  return fetchApi<string>('/restart', { method: 'POST' });
+}
+
+export interface ConfigStatusResponse {
+  needs_setup: boolean;
+  game_library_configured: boolean;
+  game_library_path: string;
+}
+
+export async function getConfigStatus(): Promise<ConfigStatusResponse> {
+  return fetchApi<ConfigStatusResponse>('/config/status');
 }

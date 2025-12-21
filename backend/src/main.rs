@@ -12,6 +12,7 @@ mod local_storage;
 mod models;
 mod scanner;
 mod steam;
+mod tray;
 
 use axum::{
     routing::{get, post, put},
@@ -158,6 +159,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/games/:id/match/confirm", post(handlers::confirm_rematch))
         .layer(middleware::from_fn(auth_middleware));
 
+    // Config routes (no auth required for local-only access)
+    let config_routes = Router::new()
+        .route("/config", get(handlers::get_config))
+        .route("/config", put(handlers::update_config))
+        .route("/config/status", get(handlers::get_config_status))
+        .route("/shutdown", post(handlers::shutdown_server))
+        .route("/restart", post(handlers::restart_server));
+
     let api_routes = Router::new()
         .route("/health", get(handlers::health))
         .route("/games", get(handlers::list_games))
@@ -168,6 +177,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/games/:id/background", get(handlers::serve_game_background))
         .route("/games/:id/storage", get(handlers::check_folder_writable))
         .route("/stats", get(handlers::get_stats))
+        .merge(config_routes)
         .merge(protected_routes)
         .with_state(state);
 
@@ -189,6 +199,33 @@ async fn main() -> anyhow::Result<()> {
         if let Err(e) = open::that(&url) {
             tracing::warn!("Failed to open browser: {}", e);
         }
+    }
+
+    // Initialize system tray icon (Windows only)
+    let tray_rx = tray::init_tray(port);
+
+    // Spawn tray command handler
+    if let Some(rx) = tray_rx {
+        let url_clone = url.clone();
+        tokio::spawn(async move {
+            loop {
+                // Check for tray commands every 100ms
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                if let Ok(cmd) = rx.try_recv() {
+                    match cmd {
+                        tray::TrayCommand::OpenBrowser => {
+                            if let Err(e) = open::that(&url_clone) {
+                                tracing::warn!("Failed to open browser: {}", e);
+                            }
+                        }
+                        tray::TrayCommand::Quit => {
+                            tracing::info!("Quit requested from tray icon");
+                            std::process::exit(0);
+                        }
+                    }
+                }
+            }
+        });
     }
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;

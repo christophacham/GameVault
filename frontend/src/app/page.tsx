@@ -5,7 +5,10 @@ import { GameCard } from '@/components/GameCard';
 import { SearchBar } from '@/components/SearchBar';
 import { StatsBar } from '@/components/StatsBar';
 import { EnrichModal } from '@/components/EnrichModal';
-import { Game, Stats, getGames, searchGames, scanGames, getStats } from '@/lib/api';
+import { EditModal } from '@/components/EditModal';
+import { AdjustMatchModal } from '@/components/AdjustMatchModal';
+import { SettingsModal } from '@/components/SettingsModal';
+import { Game, GameDetail, Stats, getGames, getGame, searchGames, scanGames, getStats } from '@/lib/api';
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
@@ -15,6 +18,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [enrichModalOpen, setEnrichModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [adjustMatchModalOpen, setAdjustMatchModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<GameDetail | null>(null);
 
   const loadGames = useCallback(async () => {
     try {
@@ -84,6 +91,52 @@ export default function Home() {
     loadStats();
   };
 
+  const handleEditGame = async (gameId: number) => {
+    try {
+      const gameDetail = await getGame(gameId);
+      setSelectedGame(gameDetail);
+      setEditModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load game details:', err);
+      alert('Failed to load game details');
+    }
+  };
+
+  const handleEditSave = (updatedGame: GameDetail) => {
+    // Update the game in the local list
+    setGames(prevGames =>
+      prevGames.map(g =>
+        g.id === updatedGame.id
+          ? {
+              ...g,
+              title: updatedGame.title,
+              genres: updatedGame.genres ? JSON.parse(updatedGame.genres) : null,
+              review_score: updatedGame.review_score,
+              review_summary: updatedGame.review_summary,
+            }
+          : g
+      )
+    );
+    loadStats();
+  };
+
+  const handleAdjustMatch = async (gameId: number) => {
+    try {
+      const gameDetail = await getGame(gameId);
+      setSelectedGame(gameDetail);
+      setAdjustMatchModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load game details:', err);
+      alert('Failed to load game details');
+    }
+  };
+
+  const handleAdjustMatchSave = (updatedGame: GameDetail) => {
+    // Refresh the game list to show new cover and data
+    loadGames();
+    loadStats();
+  };
+
   return (
     <main className="min-h-screen p-4 md:p-8">
       {/* Header */}
@@ -132,6 +185,19 @@ export default function Home() {
               </svg>
               Enrich
             </button>
+
+            <button
+              onClick={() => setSettingsModalOpen(true)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gv-hover rounded-lg transition-colors"
+              title="Settings"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -178,7 +244,12 @@ export default function Home() {
       {!loading && games.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           {games.map((game) => (
-            <GameCard key={game.id} game={game} />
+            <GameCard
+              key={game.id}
+              game={game}
+              onEdit={() => handleEditGame(game.id)}
+              onAdjustMatch={() => handleAdjustMatch(game.id)}
+            />
           ))}
         </div>
       )}
@@ -188,6 +259,34 @@ export default function Home() {
         isOpen={enrichModalOpen}
         onClose={() => setEnrichModalOpen(false)}
         onComplete={handleEnrichComplete}
+      />
+
+      {/* Edit Modal */}
+      <EditModal
+        isOpen={editModalOpen}
+        game={selectedGame}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedGame(null);
+        }}
+        onSave={handleEditSave}
+      />
+
+      {/* Adjust Match Modal */}
+      <AdjustMatchModal
+        isOpen={adjustMatchModalOpen}
+        game={selectedGame}
+        onClose={() => {
+          setAdjustMatchModalOpen(false);
+          setSelectedGame(null);
+        }}
+        onSave={handleAdjustMatchSave}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
       />
     </main>
   );

@@ -50,6 +50,10 @@ open = "5.0"
 config = "0.14"
 toml = "0.8"
 
+# System tray (Windows)
+[target.'cfg(windows)'.dependencies]
+tray-icon = "0.19"
+
 [build-dependencies]
 winres = "0.1"
 

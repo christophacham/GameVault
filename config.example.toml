@@ -1,15 +1,18 @@
 # GameVault Configuration
 # ======================
-# Copy this file to config.toml (next to GameVault.exe) and customize.
+# Place this file next to GameVault.exe as config.toml
 # All paths can be relative (to the executable) or absolute.
 
 [paths]
 # Root directory containing your games to scan
+# IMPORTANT: Change this to your actual games folder!
 # Examples:
 #   game_library = "D:\\Games"
 #   game_library = "C:\\Users\\YourName\\Games"
 #   game_library = "./games"  (relative to executable)
-game_library = "."
+#
+# Leave empty or set to your games directory:
+game_library = ""
 
 # SQLite database file location
 # The database will be created automatically on first run

@@ -6,18 +6,18 @@
 //! 3. Environment variables (GAMEVAULT_* prefix)
 
 use config::{Config, ConfigError, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Application configuration
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AppConfig {
     pub paths: PathsConfig,
     pub server: ServerConfig,
 }
 
 /// Path configuration for data storage
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PathsConfig {
     /// Root directory containing games to scan
     pub game_library: PathBuf,
@@ -28,7 +28,7 @@ pub struct PathsConfig {
 }
 
 /// Server configuration
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ServerConfig {
     /// Port to listen on
     pub port: u16,
@@ -141,14 +141,143 @@ pub fn ensure_directories(config: &AppConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Get the config file path
+pub fn get_config_path() -> PathBuf {
+    get_exe_directory().join("config.toml")
+}
+
+/// Write configuration to config.toml atomically
+pub fn write_config(config: &AppConfig) -> anyhow::Result<()> {
+    let config_path = get_config_path();
+    let temp_path = get_exe_directory().join("config.toml.tmp");
+
+    // Serialize to TOML
+    let toml_string = toml::to_string_pretty(config)?;
+
+    // Write to temp file first
+    std::fs::write(&temp_path, &toml_string)?;
+
+    // Atomic rename
+    std::fs::rename(&temp_path, &config_path)?;
+
+    tracing::info!("Configuration saved to {:?}", config_path);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn test_default_config() {
         // This should work with defaults even without a config file
         let config = AppConfig::load();
+        assert!(config.is_ok());
+    }
+
+    #[test]
+    fn test_default_port() {
+        let config = AppConfig::load().unwrap();
+        assert_eq!(config.server.port, 3000);
+    }
+
+    #[test]
+    fn test_default_bind_address() {
+        let config = AppConfig::load().unwrap();
+        assert_eq!(config.server.bind_address, "127.0.0.1");
+    }
+
+    #[test]
+    fn test_default_auto_open_browser() {
+        let config = AppConfig::load().unwrap();
+        assert!(config.server.auto_open_browser);
+    }
+
+    #[test]
+    fn test_resolve_absolute_path() {
+        let path = if cfg!(windows) {
+            "C:\\Games"
+        } else {
+            "/home/user/games"
+        };
+        let resolved = resolve_path(path);
+        assert!(resolved.is_absolute());
+        assert_eq!(resolved.to_string_lossy(), path);
+    }
+
+    #[test]
+    fn test_resolve_relative_path() {
+        let resolved = resolve_path("./games");
+        // Relative paths get resolved to exe directory
+        assert!(resolved.is_absolute());
+        assert!(resolved.to_string_lossy().contains("games"));
+    }
+
+    #[test]
+    fn test_database_url_format() {
+        let config = AppConfig::load().unwrap();
+        let db_url = config.database_url();
+        assert!(db_url.starts_with("sqlite:"));
+        assert!(db_url.contains("?mode=rwc"));
+    }
+
+    #[test]
+    fn test_config_serialization() {
+        let config = AppConfig {
+            paths: PathsConfig {
+                game_library: PathBuf::from("D:\\Games"),
+                database: "sqlite:./data/test.db?mode=rwc".to_string(),
+                cache: PathBuf::from("./cache"),
+            },
+            server: ServerConfig {
+                port: 8080,
+                auto_open_browser: false,
+                bind_address: "0.0.0.0".to_string(),
+            },
+        };
+
+        let toml_str = toml::to_string_pretty(&config).unwrap();
+        assert!(toml_str.contains("port = 8080"));
+        assert!(toml_str.contains("auto_open_browser = false"));
+        assert!(toml_str.contains("bind_address = \"0.0.0.0\""));
+    }
+
+    #[test]
+    fn test_config_deserialization() {
+        let toml_str = r#"
+[paths]
+game_library = "D:\\TestGames"
+database = "sqlite:./data/test.db?mode=rwc"
+cache = "./cache"
+
+[server]
+port = 9000
+auto_open_browser = true
+bind_address = "127.0.0.1"
+"#;
+
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.server.port, 9000);
+        assert!(config.server.auto_open_browser);
+        assert_eq!(config.paths.game_library.to_string_lossy(), "D:\\TestGames");
+    }
+
+    #[test]
+    fn test_empty_game_library_is_valid() {
+        let toml_str = r#"
+[paths]
+game_library = ""
+database = "sqlite:./data/test.db?mode=rwc"
+cache = "./cache"
+
+[server]
+port = 3000
+auto_open_browser = true
+bind_address = "127.0.0.1"
+"#;
+
+        let config: Result<AppConfig, _> = toml::from_str(toml_str);
         assert!(config.is_ok());
     }
 }
