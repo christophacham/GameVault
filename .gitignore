@@ -6,6 +6,7 @@ target/
 frontend/out/
 frontend/.next/
 backend/target/
+dist/
 
 # Data
 data/
