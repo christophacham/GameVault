@@ -986,7 +986,9 @@ pub async fn update_config(
     // Validate game library path
     let game_path = std::path::PathBuf::from(&payload.game_library);
     if !game_path.is_dir() {
-        return Json(ApiResponse::error("Game library path does not exist or is not a directory"));
+        return Json(ApiResponse::error(
+            "Game library path does not exist or is not a directory",
+        ));
     }
 
     // SECURITY: Canonicalize path to resolve symlinks and prevent symlink attacks
@@ -1000,7 +1002,9 @@ pub async fn update_config(
 
     // SECURITY: Verify it's still a directory after canonicalization
     if !game_path.is_dir() {
-        return Json(ApiResponse::error("Game library path is not a valid directory"));
+        return Json(ApiResponse::error(
+            "Game library path is not a valid directory",
+        ));
     }
 
     // Validate port range
@@ -1114,9 +1118,8 @@ pub async fn get_config_status() -> Json<ApiResponse<ConfigStatusResponse>> {
             let resolved_str = resolved_path.to_string_lossy().to_string();
 
             // Check if original path is empty, ".", or resolved path doesn't exist
-            let needs_setup = original_path.is_empty()
-                || original_path == "."
-                || !resolved_path.is_dir();
+            let needs_setup =
+                original_path.is_empty() || original_path == "." || !resolved_path.is_dir();
 
             Json(ApiResponse::success(ConfigStatusResponse {
                 needs_setup,
@@ -1124,13 +1127,11 @@ pub async fn get_config_status() -> Json<ApiResponse<ConfigStatusResponse>> {
                 game_library_path: resolved_str,
             }))
         }
-        Err(_) => {
-            Json(ApiResponse::success(ConfigStatusResponse {
-                needs_setup: true,
-                game_library_configured: false,
-                game_library_path: String::new(),
-            }))
-        }
+        Err(_) => Json(ApiResponse::success(ConfigStatusResponse {
+            needs_setup: true,
+            game_library_configured: false,
+            game_library_path: String::new(),
+        })),
     }
 }
 
@@ -1140,4 +1141,3 @@ pub struct ConfigStatusResponse {
     pub game_library_configured: bool,
     pub game_library_path: String,
 }
-

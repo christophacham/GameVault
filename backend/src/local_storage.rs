@@ -56,12 +56,16 @@ pub fn ensure_saves_dir(game_folder: &str) -> Result<PathBuf, std::io::Error> {
 
 /// Get the path where cover image should be stored
 pub fn get_cover_path(game_folder: &str) -> PathBuf {
-    Path::new(game_folder).join(GAMEVAULT_DIR).join("cover.jpg")
+    Path::new(game_folder)
+        .join(GAMEVAULT_DIR)
+        .join("cover.jpg")
 }
 
 /// Get the path where background image should be stored
 pub fn get_background_path(game_folder: &str) -> PathBuf {
-    Path::new(game_folder).join(GAMEVAULT_DIR).join("background.jpg")
+    Path::new(game_folder)
+        .join(GAMEVAULT_DIR)
+        .join("background.jpg")
 }
 
 /// Download and save an image to local storage
@@ -112,7 +116,10 @@ pub async fn cache_game_images(
 ) -> (Option<String>, Option<String>) {
     // Check if folder is writable first
     if !is_folder_writable(game_folder) {
-        tracing::warn!("Game folder not writable, skipping image cache: {}", game_folder);
+        tracing::warn!(
+            "Game folder not writable, skipping image cache: {}",
+            game_folder
+        );
         return (None, None);
     }
 
