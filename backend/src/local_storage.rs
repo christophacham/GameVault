@@ -314,11 +314,17 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
     ensure_gamevault_dir(folder_path)?;
     
     // Parse JSON string fields into Vec<String>
-    let genres: Option<Vec<String>> = game.genres.as_ref()
+    let genres: Option<Vec<String>> = game
+        .genres
+        .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
-    let developers: Option<Vec<String>> = game.developers.as_ref()
+    let developers: Option<Vec<String>> = game
+        .developers
+        .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
-    let publishers: Option<Vec<String>> = game.publishers.as_ref()
+    let publishers: Option<Vec<String>> = game
+        .publishers
+        .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
     
     // Build HLTB data if any field is present
@@ -375,11 +381,17 @@ pub fn save_game_metadata(game: &Game) -> Result<(), Box<dyn std::error::Error +
     ensure_gamevault_dir(folder_path)?;
 
     // Parse JSON string fields into Vec<String>
-    let genres: Option<Vec<String>> = game.genres.as_ref()
+    let genres: Option<Vec<String>> = game
+        .genres
+        .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
-    let developers: Option<Vec<String>> = game.developers.as_ref()
+    let developers: Option<Vec<String>> = game
+        .developers
+        .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
-    let publishers: Option<Vec<String>> = game.publishers.as_ref()
+    let publishers: Option<Vec<String>> = game
+        .publishers
+        .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
 
     // Build HLTB data if any field is present
@@ -542,7 +554,9 @@ mod tests {
         let game = create_test_game();
 
         // Parse the JSON fields as they would be in export
-        let genres: Option<Vec<String>> = game.genres.as_ref()
+        let genres: Option<Vec<String>> = game
+            .genres
+            .as_ref()
             .and_then(|s| serde_json::from_str(s).ok());
 
         assert_eq!(genres, Some(vec!["Action".to_string(), "RPG".to_string()]));

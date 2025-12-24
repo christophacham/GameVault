@@ -55,16 +55,18 @@ async fn auth_middleware(request: Request, next: axum::middleware::Next) -> Resp
         .and_then(|h| h.to_str().ok());
 
     match auth_header {
-        Some(header) if header == format!("Bearer {}", api_key) => {
-            next.run(request).await
-        }
+        Some(header) if header == format!("Bearer {}", api_key) => next.run(request).await,
         Some(header) if header == api_key => {
             // Also accept raw API key without Bearer prefix
             next.run(request).await
         }
         _ => {
             tracing::warn!("Unauthorized API request - invalid or missing API key");
-            (StatusCode::UNAUTHORIZED, "Unauthorized: Invalid or missing API key").into_response()
+            (
+                StatusCode::UNAUTHORIZED,
+                "Unauthorized: Invalid or missing API key",
+            )
+                .into_response()
         }
     }
 }
@@ -91,8 +93,8 @@ async fn main() -> anyhow::Result<()> {
     ensure_directories(&app_config)?;
 
     // Get configuration values (supports both config file and env vars for backwards compat)
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| app_config.database_url());
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| app_config.database_url());
     let games_path = std::env::var("GAMES_PATH")
         .unwrap_or_else(|_| app_config.games_path().to_string_lossy().to_string());
     let port = std::env::var("PORT")
