@@ -99,8 +99,7 @@ async fn main() -> anyhow::Result<()> {
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(app_config.server.port);
-    let host = std::env::var("HOST")
-        .unwrap_or_else(|_| app_config.server.bind_address.clone());
+    let host = std::env::var("HOST").unwrap_or_else(|_| app_config.server.bind_address.clone());
     let auto_open_browser = app_config.server.auto_open_browser;
 
     tracing::info!("Database URL: {}", database_url);
@@ -130,7 +129,7 @@ async fn main() -> anyhow::Result<()> {
         let default_origins = vec![
             "http://localhost:3000".parse::<HeaderValue>().unwrap(),
             "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
-            "http://localhost:5173".parse::<HeaderValue>().unwrap(),  // Vite dev server
+            "http://localhost:5173".parse::<HeaderValue>().unwrap(), // Vite dev server
             "http://127.0.0.1:5173".parse::<HeaderValue>().unwrap(),
         ];
 
@@ -175,7 +174,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/games/search", get(handlers::search_games))
         .route("/games/:id", get(handlers::get_game))
         .route("/games/:id/cover", get(handlers::serve_game_cover))
-        .route("/games/:id/background", get(handlers::serve_game_background))
+        .route(
+            "/games/:id/background",
+            get(handlers::serve_game_background),
+        )
         .route("/games/:id/storage", get(handlers::check_folder_writable))
         .route("/stats", get(handlers::get_stats))
         .merge(config_routes)

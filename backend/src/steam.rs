@@ -243,7 +243,7 @@ fn get_known_mappings() -> HashMap<&'static str, i64> {
     m.insert("syberia the world before", 1410680);
 
     // GTA Trilogy - Now on Steam!
-    m.insert("gta trilogy - definitive edition", 1847330);  // GTA III DE as representative
+    m.insert("gta trilogy - definitive edition", 1847330); // GTA III DE as representative
     m.insert("gta trilogy definitive edition", 1847330);
     m.insert("grand theft auto trilogy - definitive edition", 1847330);
     m.insert("grand theft auto trilogy definitive edition", 1847330);
@@ -256,14 +256,14 @@ fn get_known_mappings() -> HashMap<&'static str, i64> {
     m.insert("commandos origins", 1479730);
 
     // Non-Steam (mark as 0 to skip)
-    m.insert("diablo 2 - resurrected", 0);  // Battle.net exclusive
+    m.insert("diablo 2 - resurrected", 0); // Battle.net exclusive
     m.insert("diablo 2 resurrected", 0);
     m.insert("diablo ii resurrected", 0);
-    m.insert("pokemon legends - z-a", 0);  // Nintendo exclusive
+    m.insert("pokemon legends - z-a", 0); // Nintendo exclusive
     m.insert("pokemon legends z-a", 0);
-    m.insert("super mario galaxy 1 + 2", 0);  // Nintendo exclusive
+    m.insert("super mario galaxy 1 + 2", 0); // Nintendo exclusive
     m.insert("super mario galaxy", 0);
-    m.insert("mgs delta - snake eater", 0);  // Unreleased
+    m.insert("mgs delta - snake eater", 0); // Unreleased
     m.insert("mgs delta snake eater", 0);
 
     // Jurassic Park
@@ -284,7 +284,12 @@ pub async fn search_steam_app(client: &Client, title: &str) -> Option<(i64, f64)
     for (known_title, app_id) in &mappings {
         let similarity = jaro_winkler(&lower_title, known_title);
         if similarity > 0.85 && *app_id > 0 {
-            tracing::info!("Found known mapping for '{}': {} (similarity: {:.2})", title, app_id, similarity);
+            tracing::info!(
+                "Found known mapping for '{}': {} (similarity: {:.2})",
+                title,
+                app_id,
+                similarity
+            );
             return Some((*app_id, similarity));
         }
     }

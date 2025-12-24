@@ -42,7 +42,7 @@ const EXCLUSION_PATTERNS: &[&str] = &[
     r"(?i)\.mkv$",
     r"(?i)\.avi$",
     r"(?i)\.mp4$",
-    r"(?i)S\d{2}E\d{2}",  // TV show pattern like S01E05
+    r"(?i)S\d{2}E\d{2}", // TV show pattern like S01E05
 ];
 
 /// Check if a folder name matches exclusion patterns (non-game content)
