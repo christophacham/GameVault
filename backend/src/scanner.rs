@@ -1,5 +1,6 @@
-use regex::Regex;
 use std::path::Path;
+
+use regex::Regex;
 use walkdir::WalkDir;
 
 /// Patterns to remove from folder names to get clean game titles

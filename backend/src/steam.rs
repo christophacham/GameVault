@@ -1,8 +1,10 @@
-use crate::models::{SteamAppDetailsResponse, SteamReviewsResponse};
-use reqwest::Client;
-use strsim::jaro_winkler;
 use std::collections::HashMap;
 use std::time::Duration;
+
+use reqwest::Client;
+use strsim::jaro_winkler;
+
+use crate::models::{SteamAppDetailsResponse, SteamReviewsResponse};
 
 const STEAM_STORE_API: &str = "https://store.steampowered.com/api";
 const STEAM_SEARCH_URL: &str = "https://steamcommunity.com/actions/SearchApps";

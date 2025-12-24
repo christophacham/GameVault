@@ -1,4 +1,5 @@
-use sqlx::{SqlitePool, Row};
+use sqlx::{Row, SqlitePool};
+
 use crate::models::{Game, Stats};
 
 const SCHEMA: &str = r#"
@@ -75,9 +76,7 @@ const MIGRATIONS: &[&str] = &[
 
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     // Enable WAL mode for better concurrent access
-    sqlx::query("PRAGMA journal_mode=WAL")
-        .execute(pool)
-        .await?;
+    sqlx::query("PRAGMA journal_mode=WAL").execute(pool).await?;
 
     sqlx::query(SCHEMA).execute(pool).await?;
 
@@ -133,12 +132,10 @@ pub async fn get_game_by_id(pool: &SqlitePool, id: i64) -> Result<Option<Game>, 
 
 pub async fn search_games(pool: &SqlitePool, query: &str) -> Result<Vec<Game>, sqlx::Error> {
     let pattern = format!("%{}%", query);
-    sqlx::query_as::<_, Game>(
-        "SELECT * FROM games WHERE title LIKE ? ORDER BY title LIMIT 50"
-    )
-    .bind(pattern)
-    .fetch_all(pool)
-    .await
+    sqlx::query_as::<_, Game>("SELECT * FROM games WHERE title LIKE ? ORDER BY title LIMIT 50")
+        .bind(pattern)
+        .fetch_all(pool)
+        .await
 }
 
 /// Get games that need enrichment:
@@ -225,7 +222,6 @@ pub async fn update_game_reviews(
     Ok(())
 }
 
-
 /// Update game metadata from imported JSON file
 pub async fn update_game_from_import(
     pool: &SqlitePool,
@@ -285,17 +281,20 @@ pub async fn get_stats(pool: &SqlitePool) -> Result<Stats, sqlx::Error> {
         .fetch_one(pool)
         .await?;
 
-    let matched: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM games WHERE match_status = 'matched'")
-        .fetch_one(pool)
-        .await?;
+    let matched: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM games WHERE match_status = 'matched'")
+            .fetch_one(pool)
+            .await?;
 
-    let pending: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM games WHERE match_status = 'pending'")
-        .fetch_one(pool)
-        .await?;
+    let pending: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM games WHERE match_status = 'pending'")
+            .fetch_one(pool)
+            .await?;
 
-    let enriched: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM games WHERE steam_app_id IS NOT NULL")
-        .fetch_one(pool)
-        .await?;
+    let enriched: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM games WHERE steam_app_id IS NOT NULL")
+            .fetch_one(pool)
+            .await?;
 
     Ok(Stats {
         total_games: total.0,
@@ -332,22 +331,21 @@ pub async fn update_game_local_images(
 
 /// Get recently added games
 pub async fn get_recent_games(pool: &SqlitePool, limit: i64) -> Result<Vec<Game>, sqlx::Error> {
-    sqlx::query_as::<_, Game>(
-        "SELECT * FROM games ORDER BY created_at DESC LIMIT ?"
-    )
-    .bind(limit)
-    .fetch_all(pool)
-    .await
+    sqlx::query_as::<_, Game>("SELECT * FROM games ORDER BY created_at DESC LIMIT ?")
+        .bind(limit)
+        .fetch_all(pool)
+        .await
 }
 
 /// Get game by ID with folder path (for internal use)
-pub async fn get_game_folder_path(pool: &SqlitePool, id: i64) -> Result<Option<String>, sqlx::Error> {
-    let result: Option<(String,)> = sqlx::query_as(
-        "SELECT folder_path FROM games WHERE id = ?"
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?;
+pub async fn get_game_folder_path(
+    pool: &SqlitePool,
+    id: i64,
+) -> Result<Option<String>, sqlx::Error> {
+    let result: Option<(String,)> = sqlx::query_as("SELECT folder_path FROM games WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
 
     Ok(result.map(|r| r.0))
 }

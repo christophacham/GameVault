@@ -1,22 +1,23 @@
+use std::sync::Arc;
+
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
 use serde::Deserialize;
-use std::sync::Arc;
 
 use crate::{
     config::{self, AppConfig},
-    db, local_storage, models::{ApiResponse, Game, GameSummary, Stats}, scanner, steam, AppState
+    db, local_storage,
+    models::{ApiResponse, Game, GameSummary, Stats},
+    scanner, steam, AppState,
 };
 
 pub async fn health() -> Json<ApiResponse<&'static str>> {
     Json(ApiResponse::success("OK"))
 }
 
-pub async fn list_games(
-    State(state): State<Arc<AppState>>,
-) -> Json<ApiResponse<Vec<GameSummary>>> {
+pub async fn list_games(State(state): State<Arc<AppState>>) -> Json<ApiResponse<Vec<GameSummary>>> {
     match db::get_all_games(&state.db).await {
         Ok(games) => {
             let summaries: Vec<GameSummary> = games.into_iter().map(|g| g.into()).collect();
@@ -81,9 +82,7 @@ pub async fn search_games(
     }
 }
 
-pub async fn scan_games(
-    State(state): State<Arc<AppState>>,
-) -> Json<ApiResponse<ScanResult>> {
+pub async fn scan_games(State(state): State<Arc<AppState>>) -> Json<ApiResponse<ScanResult>> {
     tracing::info!("Starting game scan of {}", state.games_path);
 
     let games = scanner::scan_games_directory(&state.games_path);
@@ -107,7 +106,11 @@ pub async fn scan_games(
         }
     }
 
-    tracing::info!("Scan complete: {} games found, {} added/updated", total, added);
+    tracing::info!(
+        "Scan complete: {} games found, {} added/updated",
+        total,
+        added
+    );
 
     Json(ApiResponse::success(ScanResult {
         total_found: total,
@@ -121,9 +124,7 @@ pub struct ScanResult {
     added_or_updated: usize,
 }
 
-pub async fn enrich_games(
-    State(state): State<Arc<AppState>>,
-) -> Json<ApiResponse<EnrichResult>> {
+pub async fn enrich_games(State(state): State<Arc<AppState>>) -> Json<ApiResponse<EnrichResult>> {
     tracing::info!("Starting Steam enrichment");
 
     let games = match db::get_games_needing_enrichment(&state.db).await {
@@ -165,9 +166,15 @@ pub async fn enrich_games(
 
         // Update database
         if let Some(d) = details {
-            let genres_json = d.genres.map(|g| serde_json::to_string(&g).unwrap_or_default());
-            let devs_json = d.developers.map(|g| serde_json::to_string(&g).unwrap_or_default());
-            let pubs_json = d.publishers.map(|g| serde_json::to_string(&g).unwrap_or_default());
+            let genres_json = d
+                .genres
+                .map(|g| serde_json::to_string(&g).unwrap_or_default());
+            let devs_json = d
+                .developers
+                .map(|g| serde_json::to_string(&g).unwrap_or_default());
+            let pubs_json = d
+                .publishers
+                .map(|g| serde_json::to_string(&g).unwrap_or_default());
 
             if let Err(e) = db::update_game_steam_data(
                 &state.db,
@@ -195,7 +202,8 @@ pub async fn enrich_games(
                 &game.folder_path,
                 d.header_image.as_deref(),
                 d.background.as_deref(),
-            ).await;
+            )
+            .await;
 
             // Update database with local image paths
             if local_cover.is_some() || local_bg.is_some() {
@@ -204,21 +212,21 @@ pub async fn enrich_games(
                     game.id,
                     local_cover.as_deref(),
                     local_bg.as_deref(),
-                ).await {
-                    tracing::warn!("Failed to update local image paths for game {}: {}", game.id, e);
+                )
+                .await
+                {
+                    tracing::warn!(
+                        "Failed to update local image paths for game {}: {}",
+                        game.id,
+                        e
+                    );
                 }
             }
         }
 
         if let Some(r) = reviews {
-            if let Err(e) = db::update_game_reviews(
-                &state.db,
-                game.id,
-                r.score,
-                r.count,
-                &r.summary,
-            )
-            .await
+            if let Err(e) =
+                db::update_game_reviews(&state.db, game.id, r.score, r.count, &r.summary).await
             {
                 tracing::warn!("Failed to update reviews for game {}: {}", game.id, e);
             }
@@ -228,7 +236,11 @@ pub async fn enrich_games(
         tracing::info!("Enriched: {} (Steam App ID: {})", game.title, app_id);
     }
 
-    tracing::info!("Enrichment complete: {} enriched, {} failed", enriched, failed);
+    tracing::info!(
+        "Enrichment complete: {} enriched, {} failed",
+        enriched,
+        failed
+    );
 
     Json(ApiResponse::success(EnrichResult {
         enriched,
@@ -246,9 +258,7 @@ pub struct EnrichResult {
     total: usize,
 }
 
-pub async fn get_stats(
-    State(state): State<Arc<AppState>>,
-) -> Json<ApiResponse<Stats>> {
+pub async fn get_stats(State(state): State<Arc<AppState>>) -> Json<ApiResponse<Stats>> {
     match db::get_stats(&state.db).await {
         Ok(stats) => Json(ApiResponse::success(stats)),
         Err(e) => {
@@ -276,7 +286,10 @@ pub async fn get_recent_games(
 
 /// SECURITY: Validate that a path is within the allowed games directory
 /// Returns the canonicalized path if valid, None if path traversal detected
-fn validate_path_within_games(games_path: &str, file_path: &std::path::Path) -> Option<std::path::PathBuf> {
+fn validate_path_within_games(
+    games_path: &str,
+    file_path: &std::path::Path,
+) -> Option<std::path::PathBuf> {
     // Canonicalize the games directory (resolve symlinks, normalize)
     let games_canonical = match std::fs::canonicalize(games_path) {
         Ok(p) => p,
@@ -338,16 +351,13 @@ pub async fn serve_game_cover(
 
     // Read and serve the image
     match std::fs::read(&validated_path) {
-        Ok(bytes) => {
-            (
-                StatusCode::OK,
-                [(header::CONTENT_TYPE, "image/jpeg")],
-                bytes,
-            ).into_response()
-        }
-        Err(_) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read image").into_response()
-        }
+        Ok(bytes) => (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "image/jpeg")],
+            bytes,
+        )
+            .into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read image").into_response(),
     }
 }
 
@@ -387,16 +397,13 @@ pub async fn serve_game_background(
 
     // Read and serve the image
     match std::fs::read(&validated_path) {
-        Ok(bytes) => {
-            (
-                StatusCode::OK,
-                [(header::CONTENT_TYPE, "image/jpeg")],
-                bytes,
-            ).into_response()
-        }
-        Err(_) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read image").into_response()
-        }
+        Ok(bytes) => (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "image/jpeg")],
+            bytes,
+        )
+            .into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read image").into_response(),
     }
 }
 
@@ -474,7 +481,12 @@ pub async fn export_all_metadata(
         }
     }
 
-    tracing::info!("Export complete: {} exported, {} skipped, {} failed", exported, skipped, failed);
+    tracing::info!(
+        "Export complete: {} exported, {} skipped, {} failed",
+        exported,
+        skipped,
+        failed
+    );
 
     Json(ApiResponse::success(ExportResult {
         exported,
@@ -491,6 +503,7 @@ pub struct ExportResult {
     pub failed: usize,
     pub total: usize,
 }
+
 /// Import metadata from .gamevault/metadata.json files into database
 pub async fn import_all_metadata(
     State(state): State<Arc<AppState>>,
@@ -515,15 +528,22 @@ pub async fn import_all_metadata(
         match local_storage::import_game_metadata(game) {
             local_storage::ImportResult::Imported(metadata) => {
                 // Convert Vec<String> to JSON strings for database
-                let genres_json = metadata.genres.as_ref()
+                let genres_json = metadata
+                    .genres
+                    .as_ref()
                     .map(|g| serde_json::to_string(g).unwrap_or_default());
-                let devs_json = metadata.developers.as_ref()
+                let devs_json = metadata
+                    .developers
+                    .as_ref()
                     .map(|d| serde_json::to_string(d).unwrap_or_default());
-                let pubs_json = metadata.publishers.as_ref()
+                let pubs_json = metadata
+                    .publishers
+                    .as_ref()
                     .map(|p| serde_json::to_string(p).unwrap_or_default());
 
                 // Extract HLTB data
-                let (hltb_main, hltb_extra, hltb_comp) = metadata.hltb
+                let (hltb_main, hltb_extra, hltb_comp) = metadata
+                    .hltb
                     .map(|h| (h.main_mins, h.extra_mins, h.completionist_mins))
                     .unwrap_or((None, None, None));
 
@@ -542,7 +562,9 @@ pub async fn import_all_metadata(
                     hltb_main,
                     hltb_extra,
                     hltb_comp,
-                ).await {
+                )
+                .await
+                {
                     tracing::warn!("Failed to import metadata for '{}': {}", game.title, e);
                     failed += 1;
                 } else {
@@ -564,8 +586,13 @@ pub async fn import_all_metadata(
         }
     }
 
-    tracing::info!("Import complete: {} imported, {} skipped, {} not found, {} failed", 
-                   imported, skipped, not_found, failed);
+    tracing::info!(
+        "Import complete: {} imported, {} skipped, {} not found, {} failed",
+        imported,
+        skipped,
+        not_found,
+        failed
+    );
 
     Json(ApiResponse::success(ImportResult {
         imported,
@@ -656,7 +683,9 @@ pub async fn rematch_game(
     let details = steam::fetch_steam_details(&client, steam_app_id).await;
 
     if details.is_none() {
-        return Json(ApiResponse::error("Could not fetch Steam game details. Please verify the App ID is correct."));
+        return Json(ApiResponse::error(
+            "Could not fetch Steam game details. Please verify the App ID is correct.",
+        ));
     }
 
     let d = details.unwrap();
@@ -688,7 +717,11 @@ pub async fn confirm_rematch(
     Path(id): Path<i64>,
     Json(payload): Json<RematchGameRequest>,
 ) -> Json<ApiResponse<Game>> {
-    tracing::info!("Confirming rematch for game {} with input: {}", id, payload.steam_input);
+    tracing::info!(
+        "Confirming rematch for game {} with input: {}",
+        id,
+        payload.steam_input
+    );
 
     // Parse Steam App ID from input
     let steam_app_id = match parse_steam_input(&payload.steam_input) {
@@ -723,9 +756,15 @@ pub async fn confirm_rematch(
     let reviews = steam::fetch_steam_reviews(&client, steam_app_id).await;
 
     // Update database with new Steam data
-    let genres_json = d.genres.map(|g| serde_json::to_string(&g).unwrap_or_default());
-    let devs_json = d.developers.map(|g| serde_json::to_string(&g).unwrap_or_default());
-    let pubs_json = d.publishers.map(|g| serde_json::to_string(&g).unwrap_or_default());
+    let genres_json = d
+        .genres
+        .map(|g| serde_json::to_string(&g).unwrap_or_default());
+    let devs_json = d
+        .developers
+        .map(|g| serde_json::to_string(&g).unwrap_or_default());
+    let pubs_json = d
+        .publishers
+        .map(|g| serde_json::to_string(&g).unwrap_or_default());
 
     if let Err(e) = db::update_game_steam_data(
         &state.db,
@@ -739,7 +778,9 @@ pub async fn confirm_rematch(
         pubs_json.as_deref(),
         d.release_date.as_deref(),
         1.0, // Manual match has full confidence
-    ).await {
+    )
+    .await
+    {
         tracing::error!("Failed to update game steam data: {}", e);
         return Json(ApiResponse::error("Failed to update game"));
     }
@@ -757,10 +798,14 @@ pub async fn confirm_rematch(
         &game.folder_path,
         d.header_image.as_deref(),
         d.background.as_deref(),
-    ).await;
+    )
+    .await;
 
     if local_cover.is_some() || local_bg.is_some() {
-        if let Err(e) = db::update_game_local_images(&state.db, id, local_cover.as_deref(), local_bg.as_deref()).await {
+        if let Err(e) =
+            db::update_game_local_images(&state.db, id, local_cover.as_deref(), local_bg.as_deref())
+                .await
+        {
             tracing::warn!("Failed to update local image paths: {}", e);
         }
     }
@@ -806,11 +851,14 @@ pub async fn update_game(
     tracing::info!("Updating game {}", id);
 
     // Convert Vec<String> to JSON strings for DB storage
-    let genres_json = payload.genres
+    let genres_json = payload
+        .genres
         .map(|g| serde_json::to_string(&g).unwrap_or_default());
-    let devs_json = payload.developers
+    let devs_json = payload
+        .developers
         .map(|d| serde_json::to_string(&d).unwrap_or_default());
-    let pubs_json = payload.publishers
+    let pubs_json = payload
+        .publishers
         .map(|p| serde_json::to_string(&p).unwrap_or_default());
 
     // Update database and get updated game
@@ -824,7 +872,9 @@ pub async fn update_game(
         pubs_json.as_deref(),
         payload.release_date.as_deref(),
         payload.review_score,
-    ).await {
+    )
+    .await
+    {
         Ok(g) => g,
         Err(e) => {
             tracing::error!("Failed to update game {}: {}", id, e);

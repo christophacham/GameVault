@@ -27,6 +27,9 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
+          path: '.',
+          include: ['**/*.md', '**/*.mdx'],
+          exclude: ['**/node_modules/**', 'FEATURE_PLAN.md', 'FEATURE_PLAN_EDIT_AND_DETAILS.md', 'ENRICHMENT_ARCHITECTURE.md', 'PORTABLE_EXECUTABLE_PLAN.md', 'CONFIGURATION_PAGE_PLAN.md'],
           sidebarPath: './sidebars.js',
           routeBasePath: '/',
           editUrl: 'https://github.com/gamevault/gamevault/tree/main/docs/',

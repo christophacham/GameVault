@@ -14,24 +14,25 @@ mod scanner;
 mod steam;
 mod tray;
 
+use std::sync::Arc;
+
 use axum::{
+    body::Body,
+    extract::Request,
+    http::{header::CONTENT_TYPE, HeaderValue, Method, StatusCode},
+    middleware,
+    response::{IntoResponse, Response},
     routing::{get, post, put},
     Router,
-    middleware,
-    extract::Request,
-    response::{Response, IntoResponse},
-    http::StatusCode,
 };
-use axum::body::Body;
 use sqlx::sqlite::SqlitePoolOptions;
-use std::sync::Arc;
-use tower_http::cors::CorsLayer;
-use axum::http::{header::CONTENT_TYPE, HeaderValue, Method};
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::{AppConfig, ensure_directories};
-use crate::embedded::serve_static;
+use crate::{
+    config::{ensure_directories, AppConfig},
+    embedded::serve_static,
+};
 
 pub struct AppState {
     pub db: sqlx::SqlitePool,

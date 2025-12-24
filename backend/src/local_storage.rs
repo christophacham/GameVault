@@ -1,9 +1,11 @@
-use reqwest::Client;
-use chrono::Utc;
-use crate::models::Game;
-use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::Write;
+use std::path::{Path, PathBuf};
+
+use chrono::Utc;
+use reqwest::Client;
+
+use crate::models::Game;
 
 /// Directory name for GameVault data within each game folder
 const GAMEVAULT_DIR: &str = ".gamevault";

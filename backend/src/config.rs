@@ -5,9 +5,10 @@
 //! 2. config.toml next to executable
 //! 3. Environment variables (GAMEVAULT_* prefix)
 
+use std::path::PathBuf;
+
 use config::{Config, ConfigError, File};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Application configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
