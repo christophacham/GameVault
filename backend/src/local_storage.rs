@@ -61,7 +61,9 @@ pub fn get_cover_path(game_folder: &str) -> PathBuf {
 
 /// Get the path where background image should be stored
 pub fn get_background_path(game_folder: &str) -> PathBuf {
-    Path::new(game_folder).join(GAMEVAULT_DIR).join("background.jpg")
+    Path::new(game_folder)
+        .join(GAMEVAULT_DIR)
+        .join("background.jpg")
 }
 
 /// Download and save an image to local storage
