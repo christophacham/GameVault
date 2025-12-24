@@ -93,8 +93,7 @@ async fn main() -> anyhow::Result<()> {
     ensure_directories(&app_config)?;
 
     // Get configuration values (supports both config file and env vars for backwards compat)
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| app_config.database_url());
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| app_config.database_url());
     let games_path = std::env::var("GAMES_PATH")
         .unwrap_or_else(|_| app_config.games_path().to_string_lossy().to_string());
     let port = std::env::var("PORT")

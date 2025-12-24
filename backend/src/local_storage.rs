@@ -328,7 +328,10 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
         .and_then(|s| serde_json::from_str(s).ok());
     
     // Build HLTB data if any field is present
-    let hltb = if game.hltb_main_mins.is_some() || game.hltb_extra_mins.is_some() || game.hltb_completionist_mins.is_some() {
+    let hltb = if game.hltb_main_mins.is_some()
+        || game.hltb_extra_mins.is_some()
+        || game.hltb_completionist_mins.is_some()
+    {
         Some(HltbData {
             main_mins: game.hltb_main_mins,
             extra_mins: game.hltb_extra_mins,
@@ -354,15 +357,19 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
         exported_at: Utc::now().to_rfc3339(),
         manually_edited: game.manually_edited.unwrap_or(0) == 1,
     };
-    
+
     // Serialize to pretty JSON
     let json = serde_json::to_string_pretty(&metadata)?;
-    
+
     // Write to file
     let metadata_path = get_metadata_path(folder_path);
     fs::write(&metadata_path, &json)?;
-    
-    tracing::info!("Exported metadata: {:?} ({} bytes)", metadata_path, json.len());
+
+    tracing::info!(
+        "Exported metadata: {:?} ({} bytes)",
+        metadata_path,
+        json.len()
+    );
     Ok(metadata_path.to_string_lossy().to_string())
 }
 
@@ -373,7 +380,10 @@ pub fn save_game_metadata(game: &Game) -> Result<(), Box<dyn std::error::Error +
 
     // Check if folder is writable
     if !is_folder_writable(folder_path) {
-        tracing::warn!("Game folder not writable, skipping metadata save: {}", folder_path);
+        tracing::warn!(
+            "Game folder not writable, skipping metadata save: {}",
+            folder_path
+        );
         return Ok(()); // Don't fail the request, just skip file write
     }
 
@@ -395,7 +405,10 @@ pub fn save_game_metadata(game: &Game) -> Result<(), Box<dyn std::error::Error +
         .and_then(|s| serde_json::from_str(s).ok());
 
     // Build HLTB data if any field is present
-    let hltb = if game.hltb_main_mins.is_some() || game.hltb_extra_mins.is_some() || game.hltb_completionist_mins.is_some() {
+    let hltb = if game.hltb_main_mins.is_some()
+        || game.hltb_extra_mins.is_some()
+        || game.hltb_completionist_mins.is_some()
+    {
         Some(HltbData {
             main_mins: game.hltb_main_mins,
             extra_mins: game.hltb_extra_mins,
@@ -429,7 +442,11 @@ pub fn save_game_metadata(game: &Game) -> Result<(), Box<dyn std::error::Error +
     let metadata_path = get_metadata_path(folder_path);
     fs::write(&metadata_path, &json)?;
 
-    tracing::info!("Saved game metadata: {:?} ({} bytes)", metadata_path, json.len());
+    tracing::info!(
+        "Saved game metadata: {:?} ({} bytes)",
+        metadata_path,
+        json.len()
+    );
     Ok(())
 }
 
