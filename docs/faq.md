@@ -192,6 +192,23 @@ GameVault typically uses 30-50 MB RAM. If higher:
 
 If accessing from a different origin, check `CORS_ORIGINS` environment variable.
 
+## Editing Issues
+
+### Can't save edited game details
+
+**Check:**
+1. Title field is not empty (required)
+2. Date format is YYYY-MM-DD (e.g., 2023-12-25)
+3. Review score is 0-100
+
+### Keyboard shortcuts not working
+
+Ensure the modal or menu has focus:
+- Click on the modal/menu first
+- Use **Tab** to navigate between elements
+- **Escape** closes modals and menus
+- **Arrow keys** navigate menu items
+
 ## Getting Help
 
 ### Where to report bugs?

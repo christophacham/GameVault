@@ -1,0 +1,135 @@
+/**
+ * GameVault Documentation Custom Styles
+ *
+ * Customizes Docusaurus theme for GameVault branding
+ */
+
+/* Color palette - Dark gaming theme */
+:root {
+  --ifm-color-primary: #6366f1;
+  --ifm-color-primary-dark: #4f46e5;
+  --ifm-color-primary-darker: #4338ca;
+  --ifm-color-primary-darkest: #3730a3;
+  --ifm-color-primary-light: #818cf8;
+  --ifm-color-primary-lighter: #a5b4fc;
+  --ifm-color-primary-lightest: #c7d2fe;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(99, 102, 241, 0.1);
+}
+
+/* Dark mode colors */
+[data-theme='dark'] {
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6366f1;
+  --ifm-color-primary-darker: #4f46e5;
+  --ifm-color-primary-darkest: #4338ca;
+  --ifm-color-primary-light: #a5b4fc;
+  --ifm-color-primary-lighter: #c7d2fe;
+  --ifm-color-primary-lightest: #e0e7ff;
+  --ifm-background-color: #0f0f23;
+  --ifm-background-surface-color: #1a1a2e;
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.2);
+}
+
+/* Navbar styling */
+.navbar {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .navbar {
+  background-color: #16213e;
+  border-bottom: 1px solid #1f2937;
+}
+
+/* Sidebar styling */
+[data-theme='dark'] .menu {
+  background-color: #0f0f23;
+}
+
+/* Code blocks */
+.prism-code {
+  border-radius: 8px;
+}
+
+/* Tables */
+table {
+  display: table;
+  width: 100%;
+}
+
+table th {
+  background-color: var(--ifm-color-primary-lightest);
+  color: var(--ifm-color-primary-darkest);
+}
+
+[data-theme='dark'] table th {
+  background-color: var(--ifm-color-primary-darkest);
+  color: var(--ifm-color-primary-lightest);
+}
+
+/* Admonitions */
+.alert--info {
+  --ifm-alert-background-color: rgba(99, 102, 241, 0.1);
+  --ifm-alert-border-color: var(--ifm-color-primary);
+}
+
+/* Footer */
+.footer--dark {
+  background-color: #0a0a1a;
+}
+
+/* API endpoint styling */
+.api-method {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-right: 8px;
+}
+
+.api-method-get {
+  background-color: #22c55e;
+  color: white;
+}
+
+.api-method-post {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.api-method-put {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.api-method-delete {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* Component documentation cards */
+.component-card {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+[data-theme='dark'] .component-card {
+  border-color: var(--ifm-color-emphasis-500);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Architecture diagrams */
+.architecture-diagram {
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.architecture-diagram pre {
+  margin: 0;
+  background: transparent;
+}

@@ -1,13 +1,16 @@
 'use client';
 
 import { Game, getReviewColor, getCoverUrl } from '@/lib/api';
+import { GameMenu } from './GameMenu';
 
 interface GameCardProps {
   game: Game;
   onClick?: () => void;
+  onEdit?: () => void;
+  onAdjustMatch?: () => void;
 }
 
-export function GameCard({ game, onClick }: GameCardProps) {
+export function GameCard({ game, onClick, onEdit, onAdjustMatch }: GameCardProps) {
   const defaultCover = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="460" height="215" viewBox="0 0 460 215"><rect fill="%231a1a2e" width="460" height="215"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%234a4a6a" font-size="24">No Cover</text></svg>';
 
   return (
@@ -25,9 +28,16 @@ export function GameCard({ game, onClick }: GameCardProps) {
         />
       </div>
 
-      {/* Review Badge */}
+      {/* Menu Button (top-right, visible on hover) */}
+      {onEdit && (
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          <GameMenu onEdit={onEdit} onAdjustMatch={onAdjustMatch} />
+        </div>
+      )}
+
+      {/* Review Badge (moves left when menu is present) */}
       {game.review_score !== null && (
-        <div className={`absolute top-2 right-2 px-2 py-1 rounded text-sm font-bold bg-black/70 ${getReviewColor(game.review_score)}`}>
+        <div className={`absolute top-2 ${onEdit ? 'right-12' : 'right-2'} px-2 py-1 rounded text-sm font-bold bg-black/70 ${getReviewColor(game.review_score)}`}>
           {game.review_score}%
         </div>
       )}

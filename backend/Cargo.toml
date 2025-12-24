@@ -42,7 +42,7 @@ urlencoding = "2.1"
 anyhow = "1.0"
 
 # Portable executable support
-rust-embed = { version = "8.0", features = ["compression"] }
+rust-embed = { version = "8.2", features = ["compression"] }
 mime_guess = "2.0"
 open = "5.0"
 

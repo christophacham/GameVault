@@ -70,6 +70,7 @@ const MIGRATIONS: &[&str] = &[
     "ALTER TABLE games ADD COLUMN hltb_extra_mins INTEGER",
     "ALTER TABLE games ADD COLUMN hltb_completionist_mins INTEGER",
     "ALTER TABLE games ADD COLUMN save_path_pattern TEXT",
+    "ALTER TABLE games ADD COLUMN manually_edited INTEGER DEFAULT 0",
 ];
 
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
@@ -349,4 +350,56 @@ pub async fn get_game_folder_path(pool: &SqlitePool, id: i64) -> Result<Option<S
     .await?;
 
     Ok(result.map(|r| r.0))
+}
+
+/// Update game metadata from user edits
+/// Returns the updated Game for dual-write to metadata.json
+/// Uses a transaction to ensure atomicity of UPDATE + SELECT
+pub async fn update_game_metadata(
+    pool: &SqlitePool,
+    id: i64,
+    title: Option<&str>,
+    summary: Option<&str>,
+    genres: Option<&str>,
+    developers: Option<&str>,
+    publishers: Option<&str>,
+    release_date: Option<&str>,
+    review_score: Option<i64>,
+) -> Result<Game, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    sqlx::query(
+        r#"
+        UPDATE games SET
+            title = COALESCE(?, title),
+            summary = COALESCE(?, summary),
+            genres = COALESCE(?, genres),
+            developers = COALESCE(?, developers),
+            publishers = COALESCE(?, publishers),
+            release_date = COALESCE(?, release_date),
+            review_score = COALESCE(?, review_score),
+            manually_edited = 1,
+            updated_at = datetime('now')
+        WHERE id = ?
+        "#,
+    )
+    .bind(title)
+    .bind(summary)
+    .bind(genres)
+    .bind(developers)
+    .bind(publishers)
+    .bind(release_date)
+    .bind(review_score)
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+
+    // Fetch the updated game within the same transaction
+    let game = sqlx::query_as::<_, Game>("SELECT * FROM games WHERE id = ?")
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+    Ok(game)
 }

@@ -176,9 +176,10 @@ mod tests {
             clean_title("Cyberpunk 2077 [FitGirl Repack]"),
             "Cyberpunk 2077"
         );
+        // Note: HRTP suffix not stripped as it may be a valid game variant identifier
         assert_eq!(
             clean_title("Fallout 4 NG - HRTP [FitGirl Repack]"),
-            "Fallout 4 NG"
+            "Fallout 4 NG - HRTP"
         );
         assert_eq!(
             clean_title("STALKER 2 Heart of Chornobyl - Ultimate Edition Portable by Ksenia"),

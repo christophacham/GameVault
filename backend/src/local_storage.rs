@@ -191,6 +191,7 @@ pub struct BackupInfo {
 /// This is a dedicated DTO separate from Game to provide a stable export format
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ExportedMetadata {
+    pub schema_version: u32,
     pub title: String,
     pub steam_app_id: Option<i64>,
     pub summary: Option<String>,
@@ -202,6 +203,7 @@ pub struct ExportedMetadata {
     pub review_summary: Option<String>,
     pub hltb: Option<HltbData>,
     pub exported_at: String,
+    pub manually_edited: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -330,6 +332,7 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
     
     // Create export struct
     let metadata = ExportedMetadata {
+        schema_version: 2,
         title: game.title.clone(),
         steam_app_id: game.steam_app_id,
         summary: game.summary.clone(),
@@ -341,6 +344,7 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
         review_summary: game.review_summary.clone(),
         hltb,
         exported_at: Utc::now().to_rfc3339(),
+        manually_edited: game.manually_edited.unwrap_or(0) == 1,
     };
     
     // Serialize to pretty JSON
@@ -354,9 +358,71 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
     Ok(metadata_path.to_string_lossy().to_string())
 }
 
+/// Save game metadata after user edit (dual-write from DB)
+/// This is called after update_game_metadata to keep JSON in sync
+pub fn save_game_metadata(game: &Game) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let folder_path = &game.folder_path;
+
+    // Check if folder is writable
+    if !is_folder_writable(folder_path) {
+        tracing::warn!("Game folder not writable, skipping metadata save: {}", folder_path);
+        return Ok(()); // Don't fail the request, just skip file write
+    }
+
+    // Ensure .gamevault directory exists
+    ensure_gamevault_dir(folder_path)?;
+
+    // Parse JSON string fields into Vec<String>
+    let genres: Option<Vec<String>> = game.genres.as_ref()
+        .and_then(|s| serde_json::from_str(s).ok());
+    let developers: Option<Vec<String>> = game.developers.as_ref()
+        .and_then(|s| serde_json::from_str(s).ok());
+    let publishers: Option<Vec<String>> = game.publishers.as_ref()
+        .and_then(|s| serde_json::from_str(s).ok());
+
+    // Build HLTB data if any field is present
+    let hltb = if game.hltb_main_mins.is_some() || game.hltb_extra_mins.is_some() || game.hltb_completionist_mins.is_some() {
+        Some(HltbData {
+            main_mins: game.hltb_main_mins,
+            extra_mins: game.hltb_extra_mins,
+            completionist_mins: game.hltb_completionist_mins,
+        })
+    } else {
+        None
+    };
+
+    // Create export struct with manually_edited = true (since this is from user edit)
+    let metadata = ExportedMetadata {
+        schema_version: 2,
+        title: game.title.clone(),
+        steam_app_id: game.steam_app_id,
+        summary: game.summary.clone(),
+        genres,
+        developers,
+        publishers,
+        release_date: game.release_date.clone(),
+        review_score: game.review_score,
+        review_summary: game.review_summary.clone(),
+        hltb,
+        exported_at: Utc::now().to_rfc3339(),
+        manually_edited: true, // Always true when saving from user edit
+    };
+
+    // Serialize to pretty JSON
+    let json = serde_json::to_string_pretty(&metadata)?;
+
+    // Write to file
+    let metadata_path = get_metadata_path(folder_path);
+    fs::write(&metadata_path, &json)?;
+
+    tracing::info!("Saved game metadata: {:?} ({} bytes)", metadata_path, json.len());
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::Game;
 
     #[test]
     fn test_gamevault_paths() {
@@ -369,5 +435,129 @@ mod tests {
             get_background_path(folder),
             PathBuf::from("/games/TestGame/.gamevault/background.jpg")
         );
+    }
+
+    #[test]
+    fn test_metadata_path() {
+        let folder = "/games/TestGame";
+        assert_eq!(
+            get_metadata_path(folder),
+            PathBuf::from("/games/TestGame/.gamevault/metadata.json")
+        );
+    }
+
+    #[test]
+    fn test_exported_metadata_schema_version() {
+        let metadata = ExportedMetadata {
+            schema_version: 2,
+            title: "Test Game".to_string(),
+            steam_app_id: Some(12345),
+            summary: Some("A test game".to_string()),
+            genres: Some(vec!["Action".to_string()]),
+            developers: Some(vec!["Test Dev".to_string()]),
+            publishers: Some(vec!["Test Pub".to_string()]),
+            release_date: Some("2024-01-15".to_string()),
+            review_score: Some(85),
+            review_summary: Some("Very Positive".to_string()),
+            hltb: None,
+            exported_at: "2024-01-01T00:00:00Z".to_string(),
+            manually_edited: false,
+        };
+
+        assert_eq!(metadata.schema_version, 2);
+        assert_eq!(metadata.manually_edited, false);
+    }
+
+    #[test]
+    fn test_exported_metadata_serialization() {
+        let metadata = ExportedMetadata {
+            schema_version: 2,
+            title: "Test Game".to_string(),
+            steam_app_id: Some(12345),
+            summary: None,
+            genres: Some(vec!["RPG".to_string(), "Action".to_string()]),
+            developers: None,
+            publishers: None,
+            release_date: None,
+            review_score: Some(90),
+            review_summary: None,
+            hltb: Some(HltbData {
+                main_mins: Some(600),
+                extra_mins: Some(1200),
+                completionist_mins: Some(2400),
+            }),
+            exported_at: "2024-01-01T00:00:00Z".to_string(),
+            manually_edited: true,
+        };
+
+        let json = serde_json::to_string(&metadata).unwrap();
+        assert!(json.contains("\"schema_version\":2"));
+        assert!(json.contains("\"manually_edited\":true"));
+        assert!(json.contains("\"main_mins\":600"));
+    }
+
+    fn create_test_game() -> Game {
+        Game {
+            id: 1,
+            folder_path: "/games/test".to_string(),
+            folder_name: "test".to_string(),
+            title: "Test Game".to_string(),
+            igdb_id: None,
+            steam_app_id: Some(12345),
+            summary: Some("A test game".to_string()),
+            release_date: Some("2024-01-15".to_string()),
+            cover_url: None,
+            background_url: None,
+            local_cover_path: None,
+            local_background_path: None,
+            genres: Some(r#"["Action", "RPG"]"#.to_string()),
+            developers: Some(r#"["Test Dev"]"#.to_string()),
+            publishers: Some(r#"["Test Pub"]"#.to_string()),
+            review_score: Some(85),
+            review_count: None,
+            review_summary: Some("Very Positive".to_string()),
+            review_score_recent: None,
+            review_count_recent: None,
+            size_bytes: None,
+            match_confidence: Some(0.95),
+            match_status: "matched".to_string(),
+            user_status: None,
+            playtime_mins: None,
+            match_locked: None,
+            hltb_main_mins: Some(600),
+            hltb_extra_mins: Some(1200),
+            hltb_completionist_mins: Some(2400),
+            save_path_pattern: None,
+            manually_edited: Some(1),
+            created_at: "2024-01-01".to_string(),
+            updated_at: "2024-01-01".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_export_game_metadata_creates_correct_structure() {
+        // This test verifies the export logic without writing to disk
+        let game = create_test_game();
+
+        // Parse the JSON fields as they would be in export
+        let genres: Option<Vec<String>> = game.genres.as_ref()
+            .and_then(|s| serde_json::from_str(s).ok());
+
+        assert_eq!(genres, Some(vec!["Action".to_string(), "RPG".to_string()]));
+    }
+
+    #[test]
+    fn test_manually_edited_flag_conversion() {
+        let game = create_test_game();
+
+        // manually_edited is stored as i64 (0 or 1) in SQLite
+        let is_edited = game.manually_edited.unwrap_or(0) == 1;
+        assert!(is_edited);
+
+        // Test unedited game
+        let mut unedited_game = game;
+        unedited_game.manually_edited = Some(0);
+        let is_edited = unedited_game.manually_edited.unwrap_or(0) == 1;
+        assert!(!is_edited);
     }
 }

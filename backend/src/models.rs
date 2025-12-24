@@ -61,6 +61,9 @@ pub struct Game {
     // Save backup pattern
     pub save_path_pattern: Option<String>,
 
+    // Manual edit tracking
+    pub manually_edited: Option<i64>,
+
     // Timestamps
     pub created_at: String,
     pub updated_at: String,

@@ -274,6 +274,34 @@ pub async fn get_recent_games(
     }
 }
 
+/// SECURITY: Validate that a path is within the allowed games directory
+/// Returns the canonicalized path if valid, None if path traversal detected
+fn validate_path_within_games(games_path: &str, file_path: &std::path::Path) -> Option<std::path::PathBuf> {
+    // Canonicalize the games directory (resolve symlinks, normalize)
+    let games_canonical = match std::fs::canonicalize(games_path) {
+        Ok(p) => p,
+        Err(_) => return None,
+    };
+
+    // Canonicalize the target file path
+    let file_canonical = match std::fs::canonicalize(file_path) {
+        Ok(p) => p,
+        Err(_) => return None,
+    };
+
+    // SECURITY: Verify the file is within the games directory
+    if file_canonical.starts_with(&games_canonical) {
+        Some(file_canonical)
+    } else {
+        tracing::warn!(
+            "Path traversal attempt blocked: {:?} is not within {:?}",
+            file_path,
+            games_canonical
+        );
+        None
+    }
+}
+
 /// Serve a game's cover image from local storage
 pub async fn serve_game_cover(
     State(state): State<Arc<AppState>>,
@@ -300,8 +328,16 @@ pub async fn serve_game_cover(
         return (StatusCode::NOT_FOUND, "Cover image not found").into_response();
     }
 
+    // SECURITY: Validate path is within games directory
+    let validated_path = match validate_path_within_games(&state.games_path, &cover_path) {
+        Some(p) => p,
+        None => {
+            return (StatusCode::FORBIDDEN, "Access denied").into_response();
+        }
+    };
+
     // Read and serve the image
-    match std::fs::read(&cover_path) {
+    match std::fs::read(&validated_path) {
         Ok(bytes) => {
             (
                 StatusCode::OK,
@@ -341,8 +377,16 @@ pub async fn serve_game_background(
         return (StatusCode::NOT_FOUND, "Background image not found").into_response();
     }
 
+    // SECURITY: Validate path is within games directory
+    let validated_path = match validate_path_within_games(&state.games_path, &bg_path) {
+        Some(p) => p,
+        None => {
+            return (StatusCode::FORBIDDEN, "Access denied").into_response();
+        }
+    };
+
     // Read and serve the image
-    match std::fs::read(&bg_path) {
+    match std::fs::read(&validated_path) {
         Ok(bytes) => {
             (
                 StatusCode::OK,
@@ -893,6 +937,20 @@ pub async fn update_config(
     let game_path = std::path::PathBuf::from(&payload.game_library);
     if !game_path.is_dir() {
         return Json(ApiResponse::error("Game library path does not exist or is not a directory"));
+    }
+
+    // SECURITY: Canonicalize path to resolve symlinks and prevent symlink attacks
+    let game_path = match std::fs::canonicalize(&game_path) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!("Failed to canonicalize game library path: {}", e);
+            return Json(ApiResponse::error("Invalid game library path"));
+        }
+    };
+
+    // SECURITY: Verify it's still a directory after canonicalization
+    if !game_path.is_dir() {
+        return Json(ApiResponse::error("Game library path is not a valid directory"));
     }
 
     // Validate port range

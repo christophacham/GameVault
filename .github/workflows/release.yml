@@ -1,0 +1,224 @@
+# Build and Release GameVault
+# Creates releases with Windows portable executable and checksums
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-windows:
+    name: Build Windows Executable
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+
+      - name: Configure Cargo for cross-compilation
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml << EOF
+          [target.x86_64-pc-windows-gnu]
+          linker = "x86_64-w64-mingw32-gcc"
+          ar = "x86_64-w64-mingw32-ar"
+          EOF
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Windows executable
+        working-directory: backend
+        run: |
+          cargo build --release --target x86_64-pc-windows-gnu
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p dist
+          cp backend/target/x86_64-pc-windows-gnu/release/gamevault-backend.exe dist/GameVault.exe
+          cp config.example.toml dist/config.toml
+          cp README.md dist/
+          cp LICENSE dist/ 2>/dev/null || echo "No LICENSE file"
+
+      - name: Generate checksums
+        working-directory: dist
+        run: |
+          sha256sum GameVault.exe > checksums-sha256.txt
+          sha512sum GameVault.exe > checksums-sha512.txt
+
+      - name: Create ZIP archive
+        working-directory: dist
+        run: |
+          zip -r ../GameVault-windows-x64.zip .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            dist/GameVault.exe
+            dist/config.toml
+            dist/checksums-sha256.txt
+            dist/checksums-sha512.txt
+            GameVault-windows-x64.zip
+          retention-days: 7
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: gamevault:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/gamevault-docker.tar
+
+      - name: Compress Docker image
+        run: gzip /tmp/gamevault-docker.tar
+
+      - name: Upload Docker artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/gamevault-docker.tar.gz
+          retention-days: 7
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-windows, build-docker]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: release/
+
+      - name: Download Docker artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: release/
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## GameVault ${{ steps.version.outputs.version }}
+
+          ### Downloads
+
+          | File | Description |
+          |------|-------------|
+          | `GameVault.exe` | Windows portable executable (~20 MB) |
+          | `GameVault-windows-x64.zip` | Complete package with config |
+          | `gamevault-docker.tar.gz` | Docker image for containers |
+
+          ### Installation
+
+          **Windows (Portable)**
+          1. Download `GameVault.exe` or the ZIP archive
+          2. Place in any folder
+          3. Double-click to run
+          4. Configure your game library path in Settings
+
+          **Docker**
+          ```bash
+          docker load < gamevault-docker.tar.gz
+          docker run -d -p 3000:3000 -v /games:/games:ro gamevault:${{ steps.version.outputs.version }}
+          ```
+
+          ### Verification
+
+          Verify downloads using the checksums:
+          ```bash
+          sha256sum -c checksums-sha256.txt
+          ```
+
+          ### Changelog
+
+          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+          ---
+          Built with Rust + Next.js | [Documentation](https://${{ github.repository_owner }}.github.io/GameVault/)
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: GameVault ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          files: |
+            release/GameVault.exe
+            release/GameVault-windows-x64.zip
+            release/config.toml
+            release/checksums-sha256.txt
+            release/checksums-sha512.txt
+            release/gamevault-docker.tar.gz
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

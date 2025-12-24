@@ -20,8 +20,11 @@ GameVault is a lightweight, self-contained application that:
 
 | Feature | Description |
 |---------|-------------|
-| **Portable** | Single 5.9 MB executable - runs from USB, no installation |
+| **Portable** | Single ~20 MB executable - runs from USB, no installation |
 | **Steam Integration** | Automatic metadata enrichment from Steam store |
+| **Edit Metadata** | Manually edit game titles, descriptions, and details |
+| **Adjust Matches** | Fix incorrect Steam matches with correct game ID |
+| **Keyboard Navigation** | Full accessibility support with keyboard controls |
 | **Local Caching** | Cover images and metadata cached locally |
 | **Web Interface** | Beautiful, responsive UI accessible via browser |
 | **System Tray** | Runs in background with tray icon for quick access |

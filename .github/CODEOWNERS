@@ -1,0 +1,28 @@
+# CODEOWNERS - Defines code ownership for review requirements
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything
+*                       @maintainers
+
+# Frontend code
+/frontend/              @frontend-team @maintainers
+/frontend/src/          @frontend-team
+
+# Backend code
+/backend/               @backend-team @maintainers
+/backend/src/           @backend-team
+
+# Documentation
+/docs/                  @docs-team @maintainers
+/README.md              @maintainers
+
+# CI/CD and infrastructure
+/.github/               @devops-team @maintainers
+/Dockerfile*            @devops-team @maintainers
+/docker-compose.yml     @devops-team @maintainers
+/*.ps1                  @devops-team @maintainers
+
+# Security-sensitive files
+/.github/workflows/security.yml  @security-team @maintainers
+/.github/dependabot.yml          @security-team @maintainers
+/SECURITY.md                     @security-team @maintainers

@@ -6,6 +6,7 @@ A self-hosted game library application - like Plex, but for your games.
 ![Rust](https://img.shields.io/badge/Rust-1.85-orange)
 ![Next.js](https://img.shields.io/badge/Next.js-15-black)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
+![Tests](https://img.shields.io/badge/Tests-Passing-green)
 
 ## Features
 
@@ -15,6 +16,10 @@ A self-hosted game library application - like Plex, but for your games.
 - Beautiful dark-themed UI with responsive grid
 - Search and browse your collection
 - Review scores (recent and lifetime)
+- **Edit game details** - Manually edit titles, descriptions, and metadata
+- **Adjust Steam matches** - Fix incorrect game matches with correct Steam ID
+- **Keyboard navigation** - Full accessibility support in menus
+- **Portable Windows executable** - Single .exe with embedded frontend
 - Single Docker container deployment
 - **Optional API authentication** for sensitive endpoints
 - **Secure by default** - localhost-only binding
@@ -50,7 +55,31 @@ podman run -d \
   gamevault:latest
 ```
 
-### Option 3: Manual Build
+### Option 3: Windows Portable Executable (Recommended for Windows)
+
+A single portable `.exe` with the frontend embedded - no installation required.
+
+#### Using Pre-built Release
+
+1. Download `GameVault.exe` from the releases page
+2. Place it in any folder
+3. Double-click to run - browser opens automatically
+4. Configure your game library path in Settings
+
+#### Building from Source (Windows with Podman)
+
+```powershell
+# Build the portable executable
+./build-portable.ps1
+
+# Output: dist/GameVault.exe (~20MB)
+# Run it directly - no dependencies needed
+./dist/GameVault.exe
+```
+
+The build uses cross-compilation from Linux in a container to produce a Windows executable.
+
+### Option 4: Manual Build
 
 #### Prerequisites
 - [Rust](https://rustup.rs/) 1.75+
@@ -87,6 +116,22 @@ cp -r frontend/out backend/public
 ```
 
 ## Configuration
+
+### TOML Configuration (Windows Portable)
+
+For the Windows portable executable, create a `config.toml` next to `GameVault.exe`:
+
+```toml
+[paths]
+game_library = "D:\\Games"
+database = "sqlite:./data/gamevault.db?mode=rwc"
+cache = "./cache"
+
+[server]
+port = 3000
+auto_open_browser = true
+bind_address = "127.0.0.1"
+```
 
 ### Environment Variables
 
@@ -249,22 +294,36 @@ CORS_ORIGINS=https://app.example.com,https://admin.example.com
 GameVault/
 ├── backend/
 │   ├── src/
-│   │   ├── main.rs       # Axum server, routing, auth middleware
-│   │   ├── handlers.rs   # API endpoint handlers
-│   │   ├── db.rs         # SQLite operations
-│   │   ├── scanner.rs    # Directory scanning
-│   │   ├── steam.rs      # Steam API client
-│   │   └── models.rs     # Data structures
-│   └── Cargo.toml
+│   │   ├── main.rs          # Axum server, routing, auth middleware
+│   │   ├── handlers.rs      # API endpoint handlers
+│   │   ├── db.rs            # SQLite operations (with transactions)
+│   │   ├── scanner.rs       # Directory scanning
+│   │   ├── steam.rs         # Steam API client
+│   │   ├── models.rs        # Data structures
+│   │   ├── embedded.rs      # Embedded static assets (rust-embed)
+│   │   └── local_storage.rs # Local metadata storage
+│   ├── Cargo.toml
+│   └── build.rs             # Windows resource embedding
 ├── frontend/
 │   ├── src/
-│   │   ├── app/          # Next.js app router
-│   │   ├── components/   # React components
-│   │   └── lib/          # API client
-│   ├── package.json
-│   └── next.config.js
-├── Dockerfile            # Multi-stage build
+│   │   ├── app/             # Next.js app router
+│   │   ├── components/      # React components
+│   │   │   ├── EditModal.tsx        # Edit game metadata
+│   │   │   ├── AdjustMatchModal.tsx # Fix Steam matches
+│   │   │   ├── GameMenu.tsx         # Context menu (keyboard accessible)
+│   │   │   └── GameCard.tsx         # Game display card
+│   │   ├── lib/             # API client
+│   │   └── test/            # Test setup
+│   ├── vitest.config.ts     # Test configuration
+│   └── package.json
+├── docs/
+│   └── docusaurus/          # Documentation site
+├── Dockerfile               # Linux container build
+├── Dockerfile.windows       # Windows cross-compilation
+├── Dockerfile.test          # Test runner container
 ├── docker-compose.yml
+├── build-portable.ps1       # Windows portable build script
+├── config.example.toml      # Example configuration
 └── README.md
 ```
 
@@ -283,10 +342,13 @@ GameVault/
 - **React 19** - UI library
 - **TailwindCSS** - Utility-first CSS
 - **TypeScript** - Type safety
+- **Vitest** - Unit testing framework
+- **Testing Library** - React component testing
 
 ### Infrastructure
 - **Docker/Podman** - Containerization
 - **Alpine Linux** - Minimal runtime
+- **rust-embed** - Static asset embedding for portable build
 
 ## Game Matching
 
@@ -353,13 +415,23 @@ docker-compose restart
 
 ## Development
 
-### Run tests
+### Run Tests
+
 ```bash
+# Backend tests (17 tests)
 cd backend
 cargo test
+
+# Frontend tests (28 tests)
+cd frontend
+npm test
+
+# Run all tests in containers (CI/CD ready)
+podman build -f Dockerfile.test -t gamevault-test .
 ```
 
-### Hot reload (development)
+### Hot Reload (Development)
+
 ```bash
 # Terminal 1: Backend
 cd backend
@@ -370,10 +442,27 @@ cd frontend
 npm run dev
 ```
 
+### Windows Build Scripts
+
+```powershell
+# Development (hot reload)
+./dev.ps1
+
+# Build portable executable
+./build-portable.ps1
+
+# Start/stop in background
+./start.ps1
+./stop.ps1
+```
+
 ## Roadmap
 
+- [x] Manual game editing UI
+- [x] Manual game matching UI (Adjust Match)
+- [x] Keyboard navigation and accessibility
+- [x] Portable Windows executable
 - [ ] IGDB integration for better metadata
-- [ ] Manual game matching UI
 - [ ] Epic Games Store support
 - [ ] GOG integration
 - [ ] Game launching

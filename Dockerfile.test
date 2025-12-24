@@ -1,0 +1,64 @@
+# Multi-stage Dockerfile for running GameVault tests
+# Usage: podman build -f Dockerfile.test -t gamevault-test . && podman run --rm gamevault-test
+
+# ============================================
+# Stage 1: Frontend tests
+# ============================================
+FROM node:20-bookworm-slim AS frontend-test
+
+WORKDIR /app/frontend
+
+# Copy package files
+COPY frontend/package*.json ./
+
+# Install dependencies (including test deps)
+RUN npm install
+
+# Copy frontend source
+COPY frontend/ ./
+
+# Run frontend tests (fail build if tests fail)
+RUN npm run test:run
+
+# ============================================
+# Stage 2: Backend tests
+# ============================================
+FROM rust:latest AS backend-test
+
+# Install SQLite dev libraries
+RUN apt-get update && apt-get install -y libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy backend files
+COPY backend/ ./backend/
+
+# Create dummy frontend/out directory for rust-embed (required at compile time)
+RUN mkdir -p frontend/out && \
+    echo '<!DOCTYPE html><html><head><title>Test</title></head><body>Test</body></html>' > frontend/out/index.html
+
+WORKDIR /app/backend
+
+# Run backend tests (fail build if tests fail)
+RUN cargo test
+
+# ============================================
+# Final stage: Success summary
+# ============================================
+FROM alpine:latest AS final
+
+# If we reach here, all tests passed (stages would fail otherwise)
+COPY --from=frontend-test /app/frontend/package.json /proof/frontend-ok
+COPY --from=backend-test /app/backend/Cargo.toml /proof/backend-ok
+
+RUN echo "========================================" && \
+    echo "  GameVault Test Results" && \
+    echo "========================================" && \
+    echo "" && \
+    echo "  Frontend Tests: PASSED" && \
+    echo "  Backend Tests:  PASSED" && \
+    echo "" && \
+    echo "  All tests completed successfully!" && \
+    echo "========================================"
+
+CMD ["echo", "All GameVault tests passed!"]

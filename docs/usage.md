@@ -83,17 +83,22 @@ If a game is matched incorrectly:
 
 Edit any game's metadata manually:
 
-1. Click the game card's menu
-2. Select **Edit**
+1. Click the game card's menu (three dots) or press Enter when focused
+2. Select **Edit Details**
 3. Modify fields:
-   - Title
+   - Title (required)
    - Summary
    - Genres (comma-separated)
    - Developers
    - Publishers
-   - Release Date
+   - Release Date (YYYY-MM-DD format)
    - Review Score (0-100)
 4. Click **Save Changes**
+
+**Keyboard shortcuts:**
+- Press **Escape** to close the modal without saving
+- Tab through fields to navigate
+- Title field is required - save button is disabled until filled
 
 ### Dual-Write System
 
@@ -102,6 +107,27 @@ Edits are saved in two locations:
 - **Metadata File**: `.gamevault/metadata.json` in game folder
 
 This ensures your edits are preserved even if you reset the database.
+
+## Keyboard Navigation
+
+GameVault supports full keyboard navigation for accessibility:
+
+### Game Menu
+
+| Key | Action |
+|-----|--------|
+| **Enter** / **Space** | Open menu or activate item |
+| **Escape** | Close menu |
+| **Arrow Up** | Move to previous item |
+| **Arrow Down** | Move to next item |
+
+### Modals (Edit, Adjust Match)
+
+| Key | Action |
+|-----|--------|
+| **Escape** | Close modal without saving |
+| **Tab** | Navigate between fields |
+| **Enter** | Submit form (when valid) |
 
 ## Search and Filtering
 
