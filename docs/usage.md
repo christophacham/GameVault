@@ -63,9 +63,9 @@ The **Enrich** feature fetches metadata from Steam:
 ### Match Confidence
 
 Each game has a match confidence score:
-- **High (>0.8)**: Strong title match, likely correct
+- **High (&gt;0.8)**: Strong title match, likely correct
 - **Medium (0.5-0.8)**: Reasonable match, may need verification
-- **Low (<0.5)**: Uncertain match, consider manual adjustment
+- **Low (&lt;0.5)**: Uncertain match, consider manual adjustment
 
 ### Adjusting Matches
 

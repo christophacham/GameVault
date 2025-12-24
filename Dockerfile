@@ -39,8 +39,9 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release 2>/dev/null || true
 RUN rm -rf src
 
-# Copy actual source code
+# Copy actual source code and build.rs
 COPY backend/src ./src
+COPY backend/build.rs ./build.rs
 
 # Build the release binary (touch to invalidate cargo cache from dummy build)
 RUN touch src/main.rs && cargo build --release

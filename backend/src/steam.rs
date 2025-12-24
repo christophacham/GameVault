@@ -292,7 +292,8 @@ pub async fn search_steam_app(client: &Client, title: &str) -> Option<(i64, f64)
     // Search Steam
     let url = format!("{}/{}", STEAM_SEARCH_URL, urlencoding::encode(title));
 
-    let response = match client.get(&url)
+    let response = match client
+        .get(&url)
         .timeout(Duration::from_secs(10))
         .send()
         .await
@@ -307,7 +308,11 @@ pub async fn search_steam_app(client: &Client, title: &str) -> Option<(i64, f64)
     let results: Vec<serde_json::Value> = match response.json().await {
         Ok(r) => r,
         Err(e) => {
-            tracing::warn!("Failed to parse Steam search results for '{}': {}", title, e);
+            tracing::warn!(
+                "Failed to parse Steam search results for '{}': {}",
+                title,
+                e
+            );
             return None;
         }
     };
@@ -317,7 +322,10 @@ pub async fn search_steam_app(client: &Client, title: &str) -> Option<(i64, f64)
 
     for result in results.iter().take(5) {
         if let (Some(appid), Some(name)) = (
-            result.get("appid").and_then(|v| v.as_str()).and_then(|s| s.parse::<i64>().ok()),
+            result
+                .get("appid")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<i64>().ok()),
             result.get("name").and_then(|v| v.as_str()),
         ) {
             let similarity = jaro_winkler(&lower_title, &name.to_lowercase());
@@ -330,7 +338,12 @@ pub async fn search_steam_app(client: &Client, title: &str) -> Option<(i64, f64)
 
     if let Some((appid, similarity)) = best_match {
         if similarity > 0.6 {
-            tracing::info!("Found Steam match for '{}': {} (similarity: {:.2})", title, appid, similarity);
+            tracing::info!(
+                "Found Steam match for '{}': {} (similarity: {:.2})",
+                title,
+                appid,
+                similarity
+            );
             return Some((appid, similarity));
         }
     }
@@ -343,7 +356,8 @@ pub async fn search_steam_app(client: &Client, title: &str) -> Option<(i64, f64)
 pub async fn fetch_steam_details(client: &Client, app_id: i64) -> Option<SteamAppDetails> {
     let url = format!("{}/appdetails?appids={}", STEAM_STORE_API, app_id);
 
-    let response = match client.get(&url)
+    let response = match client
+        .get(&url)
         .timeout(Duration::from_secs(10))
         .send()
         .await
@@ -379,9 +393,10 @@ pub async fn fetch_steam_details(client: &Client, app_id: i64) -> Option<SteamAp
         background: app_data.background.clone(),
         developers: app_data.developers.clone(),
         publishers: app_data.publishers.clone(),
-        genres: app_data.genres.as_ref().map(|g| {
-            g.iter().map(|genre| genre.description.clone()).collect()
-        }),
+        genres: app_data
+            .genres
+            .as_ref()
+            .map(|g| g.iter().map(|genre| genre.description.clone()).collect()),
         release_date: app_data.release_date.as_ref().and_then(|r| r.date.clone()),
     })
 }
@@ -393,7 +408,8 @@ pub async fn fetch_steam_reviews(client: &Client, app_id: i64) -> Option<SteamRe
         STEAM_STORE_API, app_id
     );
 
-    let response = match client.get(&url)
+    let response = match client
+        .get(&url)
         .timeout(Duration::from_secs(10))
         .send()
         .await
