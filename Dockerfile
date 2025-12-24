@@ -43,6 +43,9 @@ RUN rm -rf src
 COPY backend/src ./src
 COPY backend/build.rs ./build.rs
 
+# Copy frontend output from Stage 1 (rust-embed needs this at compile time)
+COPY --from=frontend-builder /app/frontend/out /app/frontend/out
+
 # Build the release binary (touch to invalidate cargo cache from dummy build)
 RUN touch src/main.rs && cargo build --release
 
