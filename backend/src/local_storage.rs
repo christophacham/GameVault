@@ -159,12 +159,14 @@ pub fn list_backups(game_folder: &str) -> Vec<BackupInfo> {
             if path.extension().map_or(false, |e| e == "zip") {
                 if let Ok(metadata) = entry.metadata() {
                     backups.push(BackupInfo {
-                        filename: path.file_name()
+                        filename: path
+                            .file_name()
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_default(),
                         path: path.to_string_lossy().to_string(),
                         size_bytes: metadata.len() as i64,
-                        created_at: metadata.created()
+                        created_at: metadata
+                            .created()
                             .ok()
                             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                             .map(|d| d.as_secs() as i64)
@@ -187,7 +189,6 @@ pub struct BackupInfo {
     pub size_bytes: i64,
     pub created_at: i64,
 }
-
 
 /// Metadata structure for JSON export
 /// This is a dedicated DTO separate from Game to provide a stable export format
@@ -241,7 +242,9 @@ pub enum ImportResult {
 }
 
 /// Read and parse metadata from .gamevault/metadata.json
-pub fn read_game_metadata(game_folder: &str) -> Result<ImportedMetadata, Box<dyn std::error::Error + Send + Sync>> {
+pub fn read_game_metadata(
+    game_folder: &str,
+) -> Result<ImportedMetadata, Box<dyn std::error::Error + Send + Sync>> {
     let metadata_path = get_metadata_path(game_folder);
 
     if !metadata_path.exists() {
@@ -298,21 +301,25 @@ pub fn import_game_metadata(game: &Game) -> ImportResult {
 
 /// Get the path where metadata JSON should be stored
 pub fn get_metadata_path(game_folder: &str) -> PathBuf {
-    Path::new(game_folder).join(GAMEVAULT_DIR).join("metadata.json")
+    Path::new(game_folder)
+        .join(GAMEVAULT_DIR)
+        .join("metadata.json")
 }
 
 /// Export game metadata to JSON file in .gamevault folder
-pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+pub fn export_game_metadata(
+    game: &Game,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let folder_path = &game.folder_path;
-    
+
     // Check if folder is writable
     if !is_folder_writable(folder_path) {
         return Err(format!("Game folder not writable: {}", folder_path).into());
     }
-    
+
     // Ensure .gamevault directory exists
     ensure_gamevault_dir(folder_path)?;
-    
+
     // Parse JSON string fields into Vec<String>
     let genres: Option<Vec<String>> = game
         .genres
@@ -326,7 +333,7 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
         .publishers
         .as_ref()
         .and_then(|s| serde_json::from_str(s).ok());
-    
+
     // Build HLTB data if any field is present
     let hltb = if game.hltb_main_mins.is_some()
         || game.hltb_extra_mins.is_some()
@@ -340,7 +347,7 @@ pub fn export_game_metadata(game: &Game) -> Result<String, Box<dyn std::error::E
     } else {
         None
     };
-    
+
     // Create export struct
     let metadata = ExportedMetadata {
         schema_version: 2,
