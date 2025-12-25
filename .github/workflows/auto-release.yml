@@ -1,0 +1,114 @@
+# Auto-Release on Push to Main
+# Creates a new release with auto-incremented version on every push
+
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  auto-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for tags
+
+      - name: Get latest tag and increment version
+        id: version
+        run: |
+          # Get latest tag, default to v0.0.0 if none exists
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+
+          # Parse version components
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          # Determine bump type from commit message
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+
+          if echo "$COMMIT_MSG" | grep -qiE "^BREAKING CHANGE:|^.*!:"; then
+            # Major bump for breaking changes
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif echo "$COMMIT_MSG" | grep -qiE "^feat(\(.*\))?:"; then
+            # Minor bump for features
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            # Patch bump for everything else (fix, chore, etc.)
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+          # Generate changelog from commits since last tag
+          if [ "$LATEST_TAG" != "v0.0.0" ]; then
+            CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s" --no-merges | head -20)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" --no-merges | head -20)
+          fi
+
+          # Save changelog to file for multi-line handling
+          echo "$CHANGELOG" > /tmp/changelog.txt
+          echo "Generated changelog with $(echo "$CHANGELOG" | wc -l) entries"
+
+      - name: Check if version already exists
+        id: check
+        run: |
+          if git rev-parse "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.version.outputs.version }} already exists, skipping release"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.check.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: GameVault ${{ steps.version.outputs.version }}
+          body: |
+            ## What's Changed
+
+            ${{ steps.version.outputs.version }} released automatically from commit ${{ github.sha }}
+
+            ### Changes
+            $(cat /tmp/changelog.txt)
+
+            ---
+
+            > To download binaries, trigger the [Release workflow](https://github.com/${{ github.repository }}/actions/workflows/release.yml) with this version tag.
+
+            🤖 Auto-generated release
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          echo "## 🚀 Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
