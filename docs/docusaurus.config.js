@@ -7,11 +7,11 @@ const config = {
   tagline: 'A portable game library manager for Windows',
   favicon: 'img/favicon.ico',
 
-  url: 'https://gamevault.dev',
-  baseUrl: '/',
+  url: 'https://christophacham.github.io',
+  baseUrl: '/GameVault/',
 
-  organizationName: 'gamevault',
-  projectName: 'gamevault',
+  organizationName: 'christophacham',
+  projectName: 'GameVault',
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -32,7 +32,7 @@ const config = {
           exclude: ['**/node_modules/**', 'FEATURE_PLAN.md', 'FEATURE_PLAN_EDIT_AND_DETAILS.md', 'ENRICHMENT_ARCHITECTURE.md', 'PORTABLE_EXECUTABLE_PLAN.md', 'CONFIGURATION_PAGE_PLAN.md'],
           sidebarPath: './sidebars.js',
           routeBasePath: '/',
-          editUrl: 'https://github.com/gamevault/gamevault/tree/main/docs/',
+          editUrl: 'https://github.com/christophacham/GameVault/tree/main/docs/',
         },
         blog: false,
         theme: {
@@ -70,7 +70,7 @@ const config = {
             position: 'left',
           },
           {
-            href: 'https://github.com/gamevault/gamevault',
+            href: 'https://github.com/christophacham/GameVault',
             label: 'GitHub',
             position: 'right',
           },
@@ -101,11 +101,11 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/gamevault/gamevault',
+                href: 'https://github.com/christophacham/GameVault',
               },
               {
                 label: 'Issues',
-                href: 'https://github.com/gamevault/gamevault/issues',
+                href: 'https://github.com/christophacham/GameVault/issues',
               },
             ],
           },
