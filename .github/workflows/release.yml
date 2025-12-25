@@ -6,13 +6,12 @@ name: Release
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*.*.*'
     paths-ignore:
       - '*.md'
       - 'docs/**'
       - '.github/workflows/docs.yml'
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       version:
