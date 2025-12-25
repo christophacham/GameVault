@@ -36,7 +36,12 @@
       "Bash(pushd:*)",
       "Bash(popd)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh release:*)"
     ]
   }
 }
