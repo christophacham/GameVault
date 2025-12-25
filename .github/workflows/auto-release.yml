@@ -78,25 +78,30 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Generate release body
+        if: steps.check.outputs.skip != 'true'
+        id: body
+        run: |
+          cat > /tmp/release_body.md << 'BODYEOF'
+          ## GameVault ${{ steps.version.outputs.version }}
+
+          Auto-released from commit `${{ github.sha }}`
+
+          ### 📦 Downloads
+
+          To get binaries for this release, trigger the [Release Build](https://github.com/${{ github.repository }}/actions/workflows/release.yml) workflow with version `${{ steps.version.outputs.version }}`.
+
+          ---
+          🤖 Auto-generated release
+          BODYEOF
+
       - name: Create Release
         if: steps.check.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: GameVault ${{ steps.version.outputs.version }}
-          body: |
-            ## What's Changed
-
-            ${{ steps.version.outputs.version }} released automatically from commit ${{ github.sha }}
-
-            ### Changes
-            $(cat /tmp/changelog.txt)
-
-            ---
-
-            > To download binaries, trigger the [Release workflow](https://github.com/${{ github.repository }}/actions/workflows/release.yml) with this version tag.
-
-            🤖 Auto-generated release
+          body_path: /tmp/release_body.md
           draft: false
           prerelease: false
           generate_release_notes: true
