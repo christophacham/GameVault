@@ -29,6 +29,7 @@ GameVault is a lightweight, self-contained application that:
 | **Web Interface** | Beautiful, responsive UI accessible via browser |
 | **System Tray** | Runs in background with tray icon for quick access |
 | **Configurable** | Simple TOML configuration file |
+| **Docker Ready** | Multi-stage Dockerfile for containerized deployment |
 
 ## How It Works
 
